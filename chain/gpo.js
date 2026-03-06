@@ -36,12 +36,17 @@ define([
                             label: 'Flags'
                         }
                     ],
-                    actions: ['edit'],
+                    actions: ['edit', 'gpui'],
                     control_buttons: [
                         {
                             name: 'edit',
                             label: 'Edit',
                             icon: 'fa-pencil'
+                        },
+                        {
+                            name: 'gpui',
+                            label: 'GPUI',
+                            icon: 'fa-external-link'
                         }
                     ]
                 },
@@ -465,12 +470,27 @@ define([
         return that;
     };
 
+    exp.gpui_action = function(spec) {
+        spec = spec || {};
+        spec.name = spec.name || 'gpui';
+        spec.label = spec.label || 'GPUI';
+
+        var that = IPA.action(spec);
+
+        that.execute_action = function(facet) {
+            console.log('Привет мир');
+        };
+
+        return that;
+    };
+
     exp.register = function() {
         var e = reg.entity;
         var a = reg.action;
 
         a.register('edit', exp.edit_action);
         a.register('save', exp.save_action);
+        a.register('gpui', exp.gpui_action);
         e.register({type: 'gpo', spec: exp.gpo_entity_spec});
     };
 
