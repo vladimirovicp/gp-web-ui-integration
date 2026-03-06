@@ -474,11 +474,80 @@ define([
         spec = spec || {};
         spec.name = spec.name || 'gpui';
         spec.label = spec.label || 'GPUI';
+        spec.enable_cond = spec.enable_cond || ['item-selected'];
 
         var that = IPA.action(spec);
 
         that.execute_action = function(facet) {
-            console.log('Привет мир!');
+            var checked = $('.content-table input.standalone:checked');
+
+            if (checked.length === 0) {
+                IPA.notify('Please select at least one GPO', 'error');
+                return;
+            }
+
+            
+            var policyName = 'No';
+
+            var containerEl = document.querySelector('.content-table tbody');
+            if (containerEl) {
+                var rows = containerEl.querySelectorAll('tr');
+                for (var i = 0; i < rows.length; i++) {
+                    var tr = rows[i];
+                    var checkbox = tr.querySelector('.checkbox-cnt input[type=checkbox]');
+
+                    console.log(' checkbox:',  checkbox);
+
+                    if (checkbox && checkbox.checked) {
+                        var displaynameLink = tr.querySelector('[name="displayname"] a');
+
+                        console.log(' displaynameLink:',  displaynameLink);
+
+
+                        if (displaynameLink) {
+                            policyName = displaynameLink.textContent;
+
+                            console.log('policyName1:', policyName);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            console.log('policyName:', policyName);
+
+            var backdrop = $('<div class="modal-backdrop fade in"></div>');
+            var modal = $(
+                '<div class="modal fade in" style="display:block;" tabindex="-1" role="dialog">' +
+                    '<div class="modal-dialog" role="document">' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header">' +
+                                '<button type="button" class="close" aria-label="Close">' +
+                                    '<span aria-hidden="true">&times;</span>' +
+                                '</button>' +
+                                '<h4 class="modal-title">GPUI</h4>' +
+                            '</div>' +
+                            '<div class="modal-body">' +
+                                '<p></p>' +
+                            '</div>' +
+                            '<div class="modal-footer">' +
+                                '<button type="button" class="btn btn-default btn-close-modal">Close</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+
+            var close_modal = function() {
+                modal.remove();
+                backdrop.remove();
+            };
+
+            modal.find('.close').on('click', close_modal);
+            modal.find('.btn-close-modal').on('click', close_modal);
+            backdrop.on('click', close_modal);
+
+            $('body').append(backdrop).append(modal);
         };
 
         return that;
