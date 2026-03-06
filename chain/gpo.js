@@ -478,7 +478,7 @@ define([
         var that = IPA.action(spec);
 
         that.execute_action = function(facet) {
-            console.log('Привет мир');
+            console.log('Привет мир!');
         };
 
         return that;
