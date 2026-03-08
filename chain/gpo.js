@@ -8,6 +8,14 @@ define([
 
     var exp = IPA.gpo = {};
 
+    (function loadCSS() {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'js/plugins/chain/css/main.css';
+        document.head.appendChild(link);
+    })();
+
     var make_gpo_spec = function() {
         return {
             name: 'gpo',
@@ -501,7 +509,7 @@ define([
                                 '<h4 class="modal-title">GPUI | ' + policyName + '</h4>' +
                             '</div>' +
                             '<div class="modal-body">' +
-                                '<p></p>' +
+                                '<div id="gp__container"></div>' +
                             '</div>' +
                             '<div class="modal-footer">' +
                                 '<button type="button" class="btn btn-default btn-close-modal">Close</button>' +
@@ -521,6 +529,10 @@ define([
             backdrop.on('click', close_modal);
 
             $('body').append(backdrop).append(modal);
+
+            var script = document.createElement('script');
+            script.src = 'js/plugins/chain/js/app.js';
+            document.body.appendChild(script);
         };
 
         return that;
