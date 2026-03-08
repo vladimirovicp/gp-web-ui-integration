@@ -479,42 +479,15 @@ define([
         var that = IPA.action(spec);
 
         that.execute_action = function(facet) {
-            var checked = $('.content-table input.standalone:checked');
+            var selected = facet.get_selected_values();
 
-            if (checked.length === 0) {
-                IPA.notify('Please select at least one GPO', 'error');
+            if (selected.length !== 1) {
+                IPA.notify('Please select exactly one GPO to edit', 'error');
                 return;
             }
 
-            
-            var policyName = 'No';
-
-            var containerEl = document.querySelector('.content-table tbody');
-            if (containerEl) {
-                var rows = containerEl.querySelectorAll('tr');
-                for (var i = 0; i < rows.length; i++) {
-                    var tr = rows[i];
-                    var checkbox = tr.querySelector('.checkbox-cnt input[type=checkbox]');
-
-                    console.log(' checkbox:',  checkbox);
-
-                    if (checkbox && checkbox.checked) {
-                        var displaynameLink = tr.querySelector('[name="displayname"] a');
-
-                        console.log(' displaynameLink:',  displaynameLink);
-
-
-                        if (displaynameLink) {
-                            policyName = displaynameLink.textContent;
-
-                            console.log('policyName1:', policyName);
-                        }
-                        break;
-                    }
-                }
-            }
-
-            console.log('policyName:', policyName);
+            var policyName = selected[0];
+            //console.log('GPUI selected GPO:', policyName);
 
             var backdrop = $('<div class="modal-backdrop fade in"></div>');
             var modal = $(
@@ -525,7 +498,7 @@ define([
                                 '<button type="button" class="close" aria-label="Close">' +
                                     '<span aria-hidden="true">&times;</span>' +
                                 '</button>' +
-                                '<h4 class="modal-title">GPUI</h4>' +
+                                '<h4 class="modal-title">GPUI | ' + policyName + '</h4>' +
                             '</div>' +
                             '<div class="modal-body">' +
                                 '<p></p>' +
