@@ -1,11 +1,11 @@
 @charset "UTF-8";
-.gp__container {
+/* .gp__container {
   background-color: #fff;
   width: 90%;
   height: 90vh;
   margin: 0 auto;
   margin-top: 5vh;
-}
+} */
 .gp__main {
   width: 100%;
   height: calc(100% - 64px - 48px);

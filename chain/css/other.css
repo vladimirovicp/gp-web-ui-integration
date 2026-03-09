@@ -12,5 +12,7 @@
 }
 
 .modal-gpui .modal-dialog .modal-content .modal-body{
-    height: calc(90vh - 115px);
+    padding: 0;
+    height: calc(100% - 42px);
+    
 }

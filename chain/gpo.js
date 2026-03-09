@@ -515,11 +515,11 @@ define([
                                 '<h4 class="modal-title">GPUI | ' + policyName + '</h4>' +
                             '</div>' +
                             '<div class="modal-body">' +
-                                '<div id="gp__container"></div>' +
+                                '<div id="gp__container" class="gp__container"></div>' +
                             '</div>' +
-                            '<div class="modal-footer">' +
-                                '<button type="button" class="btn btn-default btn-close-modal">Close</button>' +
-                            '</div>' +
+                            // '<div class="modal-footer">' +
+                            //     '<button type="button" class="btn btn-default btn-close-modal">Close</button>' +
+                            // '</div>' +
                         '</div>' +
                     '</div>' +
                 '</div>'
@@ -530,9 +530,9 @@ define([
                 backdrop.remove();
             };
 
-            modal.find('.close').on('click', close_modal);
-            modal.find('.btn-close-modal').on('click', close_modal);
-            backdrop.on('click', close_modal);
+            // modal.find('.close').on('click', close_modal);
+            // modal.find('.btn-close-modal').on('click', close_modal);
+            // backdrop.on('click', close_modal);
 
             $('body').append(backdrop).append(modal);
 
