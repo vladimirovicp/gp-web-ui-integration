@@ -9,11 +9,17 @@ define([
     var exp = IPA.gpo = {};
 
     (function loadCSS() {
-        var link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.type = 'text/css';
-        link.href = 'js/plugins/chain/css/main.css';
-        document.head.appendChild(link);
+        var files = [
+            'js/plugins/chain/css/main.css',
+            'js/plugins/chain/css/other.css'
+        ];
+        files.forEach(function(href) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = href;
+            document.head.appendChild(link);
+        });
     })();
 
     var make_gpo_spec = function() {
@@ -499,7 +505,7 @@ define([
 
             var backdrop = $('<div class="modal-backdrop fade in"></div>');
             var modal = $(
-                '<div class="modal fade in" style="display:block;" tabindex="-1" role="dialog">' +
+                '<div class="modal fade in modal-gpui" style="display:block;" tabindex="-1" role="dialog">' +
                     '<div class="modal-dialog" role="document">' +
                         '<div class="modal-content">' +
                             '<div class="modal-header">' +
