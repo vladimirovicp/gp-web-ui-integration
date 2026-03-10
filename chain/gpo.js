@@ -530,9 +530,9 @@ define([
                 backdrop.remove();
             };
 
-            // modal.find('.close').on('click', close_modal);
-            // modal.find('.btn-close-modal').on('click', close_modal);
-            // backdrop.on('click', close_modal);
+            modal.find('.close').on('click', close_modal);
+            //modal.find('.btn-close-modal').on('click', close_modal);
+            backdrop.on('click', close_modal);
 
             $('body').append(backdrop).append(modal);
 
