@@ -1,0 +1,557 @@
+define([
+    'freeipa/ipa',
+    'freeipa/phases',
+    'freeipa/reg',
+    'freeipa/navigation',
+    'freeipa/rpc'
+], function(IPA, phases, reg, navigation, rpc) {
+
+    var exp = IPA.gpo = {};
+
+    (function loadCSS() {
+        var files = [
+            'js/plugins/chain/css/main.css',
+            'js/plugins/chain/css/other.css'
+        ];
+        files.forEach(function(href) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = href;
+            document.head.appendChild(link);
+        });
+    })();
+
+    var make_gpo_spec = function() {
+        return {
+            name: 'gpo',
+            facet_groups: ['settings'],
+            facets: [
+                {
+                    $type: 'search',
+                    name: 'search',
+                    label: 'Group Policy Objects',
+                    columns: [
+                        {
+                            name: 'displayname',
+                            label: 'Policy Name',
+                            primary_key: true
+                        },
+                        {
+                            name: 'cn',
+                            label: 'GUID'
+                        },
+                        {
+                            name: 'versionnumber',
+                            label: 'Version'
+                        },
+                        {
+                            name: 'flags',
+                            label: 'Flags'
+                        }
+                    ],
+                    actions: ['edit', 'gpui'],
+                    control_buttons: [
+                        {
+                            name: 'edit',
+                            label: 'Edit',
+                            icon: 'fa-pencil'
+                        },
+                        {
+                            name: 'gpui',
+                            label: 'GPUI',
+                            icon: 'fa-external-link'
+                        }
+                    ]
+                },
+                {
+                    $type: 'details',
+                    name: 'details',
+                    check_rights: false,
+                    actions: ['save', 'revert', 'refresh'],
+                    sections: [
+                        {
+                            name: 'identity',
+                            label: 'Identity',
+                            fields: [
+                                {
+                                    name: 'displayname',
+                                    label: 'Policy Name',
+                                    read_only: false
+                                },
+                                {
+                                    name: 'cn',
+                                    label: 'GUID',
+                                    read_only: true
+                                },
+                                {
+                                    name: 'distinguishedname',
+                                    label: 'Distinguished Name',
+                                    read_only: true
+                                },
+                                {
+                                    name: 'gpcfilesyspath',
+                                    label: 'File System Path'
+                                },
+                                {
+                                    name: 'versionnumber',
+                                    label: 'Version Number'
+                                },
+                                {
+                                    name: 'flags',
+                                    label: 'Flags'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            adder_dialog: {
+                title: 'Add Group Policy Object',
+                fields: [
+                    {
+                        name: 'displayname',
+                        label: 'Policy Name',
+                        required: true
+                    }
+                ]
+            }
+        };
+    };
+
+    exp.gpo_entity_spec = make_gpo_spec();
+
+    exp.edit_action = function(spec) {
+        spec = spec || {};
+        spec.name = spec.name || 'edit';
+        spec.label = spec.label || 'Edit';
+        spec.enable_cond = spec.enable_cond || ['item-selected'];
+        spec.needs_confirm = spec.needs_confirm !== undefined ? spec.needs_confirm : false;
+
+        var that = IPA.action(spec);
+
+        that.execute_action = function(facet, on_success, on_error) {
+            var selected = facet.get_selected_values();
+
+            if (selected.length !== 1) {
+                IPA.notify('Please select exactly one GPO to edit', 'error');
+                return;
+            }
+
+            var gpo_name = selected[0];
+
+            // First fetch current GPO data
+            var command = rpc.command({
+                entity: 'gpo',
+                method: 'show',
+                args: [gpo_name],
+                options: {
+                    version: IPA.api_version
+                },
+                on_success: function(data) {
+                    // Ensure we have result data
+                    // Note: data.result contains {result: {...}, value: "...", summary: "..."}
+                    var result = (data.result && data.result.result) || {};
+
+
+                    // Create edit dialog with current values
+                    var dialog = IPA.dialog({
+                        title: 'Edit Group Policy Object: ' + gpo_name,
+                        width: 600,
+                        fields: [
+                            {
+                                $type: 'text',
+                                name: 'displayname',
+                                label: 'Policy Name',
+                                value: result.displayname || '',
+                                required: true,
+                                width: '100%'
+                            },
+                            {
+                                $type: 'select',
+                                name: 'command',
+                                label: 'Command',
+                                options: [
+                                    {label: 'gpo-get-current-value', value: 'gpo_get_current_value'},
+                                    {label: 'gpo-list-children', value: 'gpo_list_children'},
+                                    {label: 'gpo-set-policy', value: 'gpo_set_policy'},
+                                    {label: 'gpo-get-policy', value: 'gpo_get_policy'}
+                                ],
+                                value: 'gpo_get_policy',
+                                width: '100%'
+                            },
+                            {
+                                $type: 'text',
+                                name: 'path',
+                                label: 'Path',
+                                value: '/',
+                                width: '100%'
+                            },
+                            {
+                                $type: 'textarea',
+                                name: 'json_data',
+                                label: 'JSON Data (for gpo-set-policy)',
+                                value: '{}',
+                                rows: 5,
+                                width: '100%',
+                                hidden: true
+                            },
+                            {
+                                $type: 'textarea',
+                                name: 'result',
+                                label: 'Result',
+                                value: '',
+                                rows: 15,
+                                read_only: true,
+                                width: '100%'
+                            }
+                        ]
+                    });
+
+                    // Setup command selection handler
+                    var command_widget = dialog.get_field('command').widget;
+                    var json_data_field = dialog.get_field('json_data');
+                    var json_data_widget = json_data_field.widget;
+
+                    function updateJsonDataVisibility() {
+                        var command = command_widget.get_value()[0];
+                        var hidden = command !== 'gpo_set_policy';
+                        json_data_field.hidden = hidden;
+                        // Only call set_visible if widget exists and has container (dialog is open)
+                        if (json_data_widget && json_data_widget.container && json_data_widget.set_visible) {
+                            try {
+                                json_data_widget.set_visible(!hidden);
+                            } catch (e) {
+
+                            }
+                        }
+                    }
+
+                    // Initial visibility
+                    updateJsonDataVisibility();
+
+                    // Bind change event
+                    command_widget.on('change', updateJsonDataVisibility);
+
+                    // Add Save button
+                    dialog.create_button({
+                        name: 'save',
+                        label: 'Save',
+                        click: function() {
+                            // Get values from dialog fields
+                            var displayname_widget = dialog.get_field('displayname').widget;
+                            var displayname_value = displayname_widget.get_value()[0] || '';
+
+                            // Prepare modification data
+                            var mod_data = {};
+
+                            // Check ONLY for rename (displayname change)
+                            // Convert both to strings and trim for comparison
+                            var current_displayname = String(result.displayname || '').trim();
+                            var new_displayname = String(displayname_value || '').trim();
+
+                            // Only rename if name is actually different (not empty, not same)
+                            if (new_displayname && new_displayname !== current_displayname) {
+                                mod_data.rename = new_displayname;
+                            }
+
+                            // DO NOT check for changes in other fields
+                            // Only version will be automatically incremented
+                            // Other fields remain unchanged unless explicitly renamed
+
+                            // ALWAYS increment version when Save is clicked
+                            var current_version = parseInt(result.versionnumber || 0);
+                            var new_version = current_version + 1;
+                            mod_data.versionnumber = new_version;
+
+                            // Execute modify command
+
+                            var mod_command = rpc.command({
+                                entity: 'gpo',
+                                method: 'mod',
+                                args: [gpo_name],
+                                options: mod_data,
+                                on_success: function(mod_result) {
+                                    dialog.close();
+                                    facet.refresh();
+                                    var success_msg = 'GPO "' + gpo_name + '" updated successfully. Version incremented from ' + current_version + ' to ' + new_version + '.';
+                                    if (mod_data.rename) {
+                                        success_msg = 'GPO renamed from "' + gpo_name + '" to "' + mod_data.rename + '" successfully. Version incremented from ' + current_version + ' to ' + new_version + '.';
+                                    }
+                                    IPA.notify_success(success_msg);
+                                    if (on_success) on_success(mod_result);
+                                },
+                                on_error: function(xhr, text_status, error_thrown) {
+                                    var msg = 'Failed to update GPO';
+                                    if (error_thrown && error_thrown.message) {
+                                        msg += ': ' + error_thrown.message;
+                                    }
+
+                                    IPA.notify(msg, 'error');
+                                    if (on_error) on_error(xhr, text_status, error_thrown);
+                                }
+                            });
+                            mod_command.execute();
+                        }
+                    });
+
+                    // Add Execute button
+                    dialog.create_button({
+                        name: 'execute',
+                        label: 'Execute Command',
+                        click: function() {
+                            var command_widget = dialog.get_field('command').widget;
+                            var path_widget = dialog.get_field('path').widget;
+                            var json_data_widget = dialog.get_field('json_data').widget;
+                            var result_widget = dialog.get_field('result').widget;
+
+                            var command = command_widget.get_value()[0];
+                            var method = command.replace(/^gpo_/, '');
+                            var path = path_widget.get_value()[0] || '/';
+                            var json_data = json_data_widget.get_value()[0] || '{}';
+
+                            // Prepare arguments based on command
+                            var args = [path];
+                            var options = {
+                                version: IPA.api_version
+                            };
+
+                            // For set-policy, add json data
+                            if (command === 'gpo_set_policy') {
+                                try {
+                                    var json_obj = JSON.parse(json_data);
+                                    options.json = json_obj;
+                                } catch (e) {
+                                    IPA.notify('Invalid JSON data: ' + e.message, 'error');
+                                    return;
+                                }
+                            }
+
+                            // Clear previous result
+                            result_widget.set_value(['Executing...']);
+
+                            var rpc_command = rpc.command({
+                                entity: 'gpo',
+                                method: method,
+                                args: args,
+                                options: options,
+                                on_success: function(data) {
+                                    var result_data = data.result.result || {};
+                                    var json_str = JSON.stringify(result_data, null, 2);
+                                    result_widget.set_value([json_str]);
+                                },
+                                on_error: function(xhr, text_status, error_thrown) {
+                                    var msg = 'Command failed';
+                                    if (error_thrown && error_thrown.message) {
+                                        msg += ': ' + error_thrown.message;
+                                    }
+                                    IPA.notify(msg, 'error');
+                                    result_widget.set_value(['Error: ' + msg]);
+                                }
+                            });
+                            rpc_command.execute();
+                        }
+                    });
+
+                    // Add Cancel button
+                    dialog.create_button({
+                        name: 'cancel',
+                        label: 'Cancel',
+                        click: function() {
+                            dialog.close();
+                        }
+                    });
+
+                    dialog.open();
+                },
+                on_error: function(xhr, text_status, error_thrown) {
+                    var msg = 'Failed to load GPO data';
+                    if (error_thrown && error_thrown.message) {
+                        msg += ': ' + error_thrown.message;
+                    }
+                    IPA.notify(msg, 'error');
+                    if (on_error) on_error(xhr, text_status, error_thrown);
+                }
+            });
+            command.execute();
+        };
+
+        return that;
+    };
+
+    exp.save_action = function(spec) {
+        spec = spec || {};
+        spec.name = spec.name || 'save';
+        spec.label = spec.label || 'Save';
+        spec.enable_cond = spec.enable_cond || ['dirty'];
+        spec.needs_confirm = spec.needs_confirm !== undefined ? spec.needs_confirm : false;
+
+        var that = IPA.action(spec);
+
+        that.execute_action = function(facet, on_success, on_error) {
+            // Get current values from facet
+            var values = facet.get_values();
+            var original_values = facet.get_original_values();
+
+            // Prepare modification data
+            var mod_data = {};
+            var has_changes = false;
+
+            // Check ONLY for rename (displayname change)
+            // Convert both to strings and trim for comparison
+            var current_displayname = String(original_values.displayname || '').trim();
+            var new_displayname = String(values.displayname || '').trim();
+
+            // Only rename if name is actually different (not empty, not same)
+            if (new_displayname && new_displayname !== current_displayname) {
+                mod_data.rename = new_displayname;
+                has_changes = true;
+            }
+
+            // DO NOT check for changes in other fields
+            // Only version will be automatically incremented
+            // Other fields remain unchanged unless explicitly renamed
+            // Always set has_changes to true to allow version increment
+            if (!has_changes) {
+                has_changes = true;
+            }
+
+            // Check if versionnumber was manually changed
+            var version_changed_manually = parseInt(values.versionnumber) !== parseInt(original_values.versionnumber || 0);
+            if (version_changed_manually) {
+                // Validate manual version change
+                var new_version = parseInt(values.versionnumber);
+                var current_version = parseInt(original_values.versionnumber || 0);
+
+                if (new_version <= current_version) {
+                    IPA.notify('Version number must be greater than current version (' + current_version + '). Auto-incrementing to version ' + (current_version + 1) + '.', 'warning');
+                    // Auto-increment instead
+                    mod_data.versionnumber = current_version + 1;
+                } else {
+                    mod_data.versionnumber = new_version;
+                    IPA.notify('Using manually specified version: ' + new_version, 'info');
+                }
+                has_changes = true;
+            }
+
+            // If no changes, just return
+            if (!has_changes) {
+                IPA.notify('No changes made', 'info');
+                if (on_success) on_success();
+                return;
+            }
+
+            // Automatically increment version if there are changes (unless manually changed with valid version)
+            if (has_changes && !version_changed_manually) {
+                var current_version = parseInt(original_values.versionnumber || 0);
+                mod_data.versionnumber = current_version + 1;
+            }
+
+            // Get the GPO name (primary key)
+            var gpo_name = facet.entity.get_primary_key(original_values);
+
+            // Execute modify command
+            var mod_command = rpc.command({
+                entity: 'gpo',
+                method: 'mod',
+                args: [gpo_name],
+                options: mod_data,
+                on_success: function(mod_result) {
+                    facet.refresh();
+                    var success_msg = 'GPO "' + gpo_name + '" updated successfully';
+                    if (mod_data.rename) {
+                        success_msg = 'GPO renamed from "' + gpo_name + '" to "' + mod_data.rename + '" successfully';
+                    }
+                    // Add version info to success message
+                    if (mod_data.versionnumber !== undefined) {
+                        success_msg += ' (version: ' + mod_data.versionnumber + ')';
+                    }
+                    IPA.notify_success(success_msg);
+                    if (on_success) on_success(mod_result);
+                },
+                on_error: function(xhr, text_status, error_thrown) {
+                    var msg = 'Failed to update GPO';
+                    if (error_thrown && error_thrown.message) {
+                        msg += ': ' + error_thrown.message;
+                    }
+                    IPA.notify(msg, 'error');
+                    if (on_error) on_error(xhr, text_status, error_thrown);
+                }
+            });
+            mod_command.execute();
+        };
+
+        return that;
+    };
+
+        exp.gpui_action = function(spec) {
+        spec = spec || {};
+        spec.name = spec.name || 'gpui';
+        spec.label = spec.label || 'GPUI';
+        spec.enable_cond = spec.enable_cond || ['item-selected'];
+
+        var that = IPA.action(spec);
+
+        that.execute_action = function(facet) {
+            var selected = facet.get_selected_values();
+
+            if (selected.length !== 1) {
+                IPA.notify('Please select exactly one GPO to edit', 'error');
+                return;
+            }
+
+            var policyName = selected[0];
+            //console.log('GPUI selected GPO:', policyName);
+
+            var backdrop = $('<div class="modal-backdrop fade in"></div>');
+            var modal = $(
+                '<div class="modal fade in modal-gpui" style="display:block;" tabindex="-1" role="dialog">' +
+                    '<div class="modal-dialog" role="document">' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header">' +
+                                '<button type="button" class="close" aria-label="Close">' +
+                                    '<span aria-hidden="true">&times;</span>' +
+                                '</button>' +
+                                '<h4 class="modal-title">GPUI | ' + policyName + '</h4>' +
+                            '</div>' +
+                            '<div class="modal-body">' +
+                                '<div id="gp__container" class="gp__container"></div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+
+            var close_modal = function() {
+                modal.remove();
+                backdrop.remove();
+            };
+
+            modal.find('.close').on('click', close_modal);
+            //modal.find('.btn-close-modal').on('click', close_modal);
+            backdrop.on('click', close_modal);
+
+            $('body').append(backdrop).append(modal);
+
+            var script = document.createElement('script');
+            script.src = 'js/plugins/chain/js/app.js';
+            document.body.appendChild(script);
+        };
+
+        return that;
+    };
+
+    exp.register = function() {
+        var e = reg.entity;
+        var a = reg.action;
+
+        a.register('edit', exp.edit_action);
+        a.register('save', exp.save_action);
+        a.register('gpui', exp.gpui_action);
+        e.register({type: 'gpo', spec: exp.gpo_entity_spec});
+    };
+
+    phases.on('registration', exp.register);
+
+    return exp;
+});
