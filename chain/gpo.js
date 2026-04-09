@@ -8,6 +8,20 @@ define([
 
     var exp = IPA.gpo = {};
 
+    (function loadCSS() {
+        var files = [
+            'js/plugins/chain/css/main.css',
+            'js/plugins/chain/css/other.css'
+        ];
+        files.forEach(function(href) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = href;
+            document.head.appendChild(link);
+        });
+    })();
+
     var make_gpo_spec = function() {
         return {
             name: 'gpo',
@@ -36,12 +50,17 @@ define([
                             label: 'Flags'
                         }
                     ],
-                    actions: ['edit'],
+                    actions: ['edit', 'gpui'],
                     control_buttons: [
                         {
                             name: 'edit',
                             label: 'Edit',
                             icon: 'fa-pencil'
+                        },
+                        {
+                            name: 'gpui',
+                            label: 'GPUI',
+                            icon: 'fa-external-link'
                         }
                     ]
                 },
@@ -465,12 +484,70 @@ define([
         return that;
     };
 
+        exp.gpui_action = function(spec) {
+        spec = spec || {};
+        spec.name = spec.name || 'gpui';
+        spec.label = spec.label || 'GPUI';
+        spec.enable_cond = spec.enable_cond || ['item-selected'];
+
+        var that = IPA.action(spec);
+
+        that.execute_action = function(facet) {
+            var selected = facet.get_selected_values();
+
+            if (selected.length !== 1) {
+                IPA.notify('Please select exactly one GPO to edit', 'error');
+                return;
+            }
+
+            var policyName = selected[0];
+            //console.log('GPUI selected GPO:', policyName);
+
+            var backdrop = $('<div class="modal-backdrop fade in"></div>');
+            var modal = $(
+                '<div class="modal fade in modal-gpui" style="display:block;" tabindex="-1" role="dialog">' +
+                    '<div class="modal-dialog" role="document">' +
+                        '<div class="modal-content">' +
+                            '<div class="modal-header">' +
+                                '<button type="button" class="close" aria-label="Close">' +
+                                    '<span aria-hidden="true">&times;</span>' +
+                                '</button>' +
+                                '<h4 class="modal-title">GPUI | ' + policyName + '</h4>' +
+                            '</div>' +
+                            '<div class="modal-body">' +
+                                '<div id="gp__container" class="gp__container"></div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+
+            var close_modal = function() {
+                modal.remove();
+                backdrop.remove();
+            };
+
+            modal.find('.close').on('click', close_modal);
+            //modal.find('.btn-close-modal').on('click', close_modal);
+            backdrop.on('click', close_modal);
+
+            $('body').append(backdrop).append(modal);
+
+            var script = document.createElement('script');
+            script.src = 'js/plugins/chain/js/app.js';
+            document.body.appendChild(script);
+        };
+
+        return that;
+    };
+
     exp.register = function() {
         var e = reg.entity;
         var a = reg.action;
 
         a.register('edit', exp.edit_action);
         a.register('save', exp.save_action);
+        a.register('gpui', exp.gpui_action);
         e.register({type: 'gpo', spec: exp.gpo_entity_spec});
     };
 
