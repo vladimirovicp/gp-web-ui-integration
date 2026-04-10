@@ -18,5 +18,14 @@
 .modal-gpui .modal-dialog .modal-content .modal-body{
     padding: 0;
     height: calc(100% - 42px);
-    
+}
+
+.gp__admx-radio input[type="radio"]{
+    opacity: unset;
+    position: static;
+}
+
+.gp__admx-state-policy label{
+    font-weight: 400;
+        margin: 0;
 }
