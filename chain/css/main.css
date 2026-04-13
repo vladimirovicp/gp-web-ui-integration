@@ -41,12 +41,39 @@
   font-weight: bold;
 }
 
+@keyframes tree-view-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .gp__container .tree-view {
   padding-top: 24px;
   padding-left: 24px;
   width: 432px;
   height: 100%;
   overflow: auto;
+}
+.gp__container .tree-view .tree-view__status {
+  min-height: 120px;
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #555555;
+  font-size: 14px;
+}
+.gp__container .tree-view .tree-view__status-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d1d1;
+  border-top-color: #297FB0;
+  border-radius: 50%;
+  animation: tree-view-spinner 0.8s linear infinite;
+}
+.gp__container .tree-view .tree-view__status--error {
+  color: #8c2b2b;
 }
 .gp__container .tree-view ul {
   list-style-type: none;
