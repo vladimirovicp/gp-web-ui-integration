@@ -30159,6 +30159,56 @@
   }
 
   // src/app/app.js
+  var mainPolicy = null;
+  function getPolicy(path, onSuccess, onError) {
+    var policyPath = path || "/";
+    if (typeof rpc === "undefined" || !rpc || typeof rpc.command !== "function") {
+      var rpcError = new Error("Global rpc is not available.");
+      console.error("[policy] Failed to execute getPolicy.", rpcError);
+      if (typeof onError === "function") {
+        onError(null, "rpc_unavailable", rpcError);
+      }
+      return;
+    }
+    if (typeof IPA === "undefined" || !IPA) {
+      var ipaError = new Error("Global IPA is not available.");
+      console.error("[policy] Failed to execute getPolicy.", ipaError);
+      if (typeof onError === "function") {
+        onError(null, "ipa_unavailable", ipaError);
+      }
+      return;
+    }
+    var command = rpc.command({
+      entity: "gpo",
+      method: "get_policy",
+      args: [policyPath],
+      options: {
+        version: IPA.api_version
+      },
+      on_success: function(data) {
+        var result = data && data.result ? data.result.result || {} : {};
+        if (typeof onSuccess === "function") {
+          onSuccess(result);
+        }
+      },
+      on_error: function(xhr, text_status, error_thrown) {
+        console.error("[policy] Failed to load policy.", error_thrown || text_status || xhr);
+        if (typeof onError === "function") {
+          onError(xhr, text_status, error_thrown);
+        }
+      }
+    });
+    command.execute();
+  }
+  function loadMainPolicy(path) {
+    // Stage 1: load policy and store it separately without changing static UI data.
+    getPolicy(path || "/", function(policy) {
+      mainPolicy = policy;
+      console.log(mainPolicy);
+    }, function(xhr, text_status, error_thrown) {
+      console.error("[mainPolicy] Failed to initialize policy loading.", error_thrown || text_status || xhr);
+    });
+  }
   var treeViewState = {
     selectedItem: null,
     selectedPath: [],
@@ -30414,6 +30464,7 @@
   };
   initShortcutsStorage();
   initAdmxStorage();
+  loadMainPolicy("/");
   var container = document.getElementById("gp__container");
   if (container) {
     const header = renderHeader(container);
