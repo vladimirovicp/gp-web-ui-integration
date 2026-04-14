@@ -533,7 +533,7 @@ define([
 
             $('body').append(backdrop).append(modal);
 
-            require(['js/plugins/chain/js/app'], function(app) {
+            require(['./js/app'], function(app) {
                 if (app && typeof app.init === 'function') {
                     app.init({
                         containerId: 'gp__container',
