@@ -1,10 +1,11 @@
 define([
+    'require',
     'freeipa/ipa',
     'freeipa/phases',
     'freeipa/reg',
     'freeipa/navigation',
     'freeipa/rpc'
-], function(IPA, phases, reg, navigation, rpc) {
+], function(require, IPA, phases, reg, navigation, rpc) {
 
     var exp = IPA.gpo = {};
 
