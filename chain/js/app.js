@@ -1,4 +1,5 @@
-(() => {
+define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
+  function init(options) {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -30209,6 +30210,7 @@
       console.error("[mainPolicy] Failed to initialize policy loading.", error_thrown || text_status || xhr);
     });
   }
+  
   var treeViewState = {
     selectedItem: null,
     selectedPath: [],
@@ -30462,19 +30464,24 @@
       });
     }
   };
-  initShortcutsStorage();
-  initAdmxStorage();
-  loadMainPolicy("/");
-  var container = document.getElementById("gp__container");
-  if (container) {
-    const header = renderHeader(container);
-    treeViewState.setHeader(header);
-    treeViewState.initHelpControls();
-    const { main, treeView, divider } = renderMain(container, treeViewState);
-    renderFooter(container);
-    const dividerElement = divider.getElement();
-    const treeViewElement = treeView.getElement();
-    const mainElement = main.getElement();
-    resizable(dividerElement, treeViewElement, mainElement);
+    options = options || {};
+    initShortcutsStorage();
+    initAdmxStorage();
+    loadMainPolicy(options.path || "/");
+    var container = document.getElementById(options.containerId || "gp__container");
+    if (container) {
+      const header = renderHeader(container);
+      treeViewState.setHeader(header);
+      treeViewState.initHelpControls();
+      const { main, treeView, divider } = renderMain(container, treeViewState);
+      renderFooter(container);
+      const dividerElement = divider.getElement();
+      const treeViewElement = treeView.getElement();
+      const mainElement = main.getElement();
+      resizable(dividerElement, treeViewElement, mainElement);
+    }
   }
-})();
+  return {
+    init: init
+  };
+});
