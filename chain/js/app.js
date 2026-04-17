@@ -1,4 +1,31 @@
-(() => {
+define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
+  function init(options) {
+  var __create = Object.create;
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getProtoOf = Object.getPrototypeOf;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __commonJS = (cb, mod) => function __require() {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+    // If the importer is in node compatibility mode or this is not an ESM
+    // file that has been converted to a CommonJS file using a Babel-
+    // compatible transform (i.e. "__esModule" has not been set), then set
+    // "default" to the CommonJS "module.exports" for node compatibility.
+    isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+    mod
+  ));
+
   // src/app/util/element-creator.js
   var ElementCreator = class _ElementCreator {
     /**
@@ -272,11 +299,146 @@
               text: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"
             })
           ]
+        }),
+        createElement("div", {
+          className: "gp__control-admx",
+          children: [
+            createElement("button", {
+              className: ["button", "admx__btn-apply"],
+              text: "\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C"
+            }),
+            createElement("button", {
+              className: ["button", "admx__btn-cancel"],
+              text: "\u041E\u0442\u043C\u0435\u043D\u0430"
+            })
+          ]
+        }),
+        createElement("div", {
+          className: "gp__control-help",
+          children: [
+            createElement("button", {
+              className: ["button", "btn-information"],
+              text: "\u0421\u0432\u0435\u0434\u0435\u043D\u0438\u044F"
+            })
+          ]
         })
       ]
     });
     container2.appendChild(element.getElement());
     return element;
+  }
+
+  // src/app/components/tree-view/tree-view-list.js
+  function setTreeItemActive(treeItemElement, container2 = document) {
+    if (!treeItemElement) {
+      return null;
+    }
+    container2.querySelectorAll(".tree-item.active").forEach((currentTreeItem) => {
+      if (currentTreeItem !== treeItemElement) {
+        currentTreeItem.classList.remove("active");
+      }
+    });
+    treeItemElement.classList.add("active");
+    return treeItemElement;
+  }
+  function setFolderOpenedState(listItemElement, item, opened) {
+    if (item?.type !== "folder") {
+      return Boolean(item?.opened);
+    }
+    if (!listItemElement) {
+      item.opened = Boolean(opened);
+      return item.opened;
+    }
+    const shouldOpen = Boolean(opened);
+    const nestedList = listItemElement.querySelector(":scope > ul.tree-view__list");
+    item.opened = shouldOpen;
+    listItemElement.classList.toggle("opened", shouldOpen);
+    listItemElement.classList.toggle("closed", !shouldOpen);
+    if (nestedList) {
+      nestedList.style.display = shouldOpen ? "" : "none";
+    }
+    return shouldOpen;
+  }
+  function toggleFolder(listItemElement, item) {
+    return setFolderOpenedState(listItemElement, item, !item?.opened);
+  }
+  function renderTreeItem(item, treeViewState2, parentItem = null) {
+    const classes = ["view"];
+    if (item.type === "folder") {
+      classes.push("folder");
+      classes.push(item.opened ? "opened" : "closed");
+    } else {
+      classes.push("file");
+    }
+    const treeItem = createElement("span", {
+      className: "tree-item",
+      children: []
+    });
+    if (item.type === "folder") {
+      treeItem.append(createElement("span", {
+        className: "icon-switcher"
+      }));
+    }
+    if (item.icon) {
+      treeItem.append(createElement("span", {
+        className: ["icon", item.icon]
+      }));
+    }
+    treeItem.append(createElement("span", {
+      className: "tree-item__title",
+      text: item.title
+    }));
+    const listItem = createElement("li", {
+      className: classes,
+      children: [treeItem]
+    });
+    if (treeViewState2) {
+      treeViewState2.registerTreeNode(item, {
+        treeItemElement: treeItem.getElement(),
+        listItemElement: listItem.getElement(),
+        parentItem
+      });
+    }
+    if (item.children && item.children.length > 0) {
+      const nestedList = renderTreeList(item.children, treeViewState2, item);
+      listItem.append(nestedList);
+      if (item.type === "folder") {
+        setFolderOpenedState(listItem.getElement(), item, item.opened);
+      }
+    }
+    treeItem.on("click", (event) => {
+      event.stopPropagation();
+      const clickedElement = event.currentTarget;
+      if (treeViewState2) {
+        if (item.type === "folder" && item.children && item.children.length > 0) {
+          treeViewState2.toggleFolder(item);
+        }
+        treeViewState2.navigateToNode(item, {
+          treeItemElement: clickedElement,
+          openPath: true
+        });
+        return;
+      }
+      setTreeItemActive(clickedElement);
+      if (item.type === "folder" && item.children && item.children.length > 0) {
+        toggleFolder(listItem.getElement(), item);
+      }
+    });
+    return listItem;
+  }
+  function renderTreeList(items, treeViewState2, parentItem = null) {
+    return createElement("ul", {
+      className: "tree-view__list",
+      children: items.map((item) => renderTreeItem(item, treeViewState2, parentItem))
+    });
+  }
+  function renderTreeViewList(data = [], workspace = null, treeViewState2 = null) {
+    const treeData = Array.isArray(data) ? data : [];
+    if (workspace && treeViewState2) {
+      treeViewState2.setWorkspace(workspace);
+      treeViewState2.setTreeData(treeData);
+    }
+    return renderTreeList(treeData, treeViewState2);
   }
 
   // src/app/locales/en.js
@@ -416,6 +578,8 @@
     },
     // Настройки (Preferences)
     preferences: {
+      title: "Preferences",
+      systemSettings: "System settings",
       environment: "Environment",
       files: "Files",
       folders: "Folders",
@@ -787,7 +951,7 @@
 
   // src/app/locales/translations.js
   var translations = { en: en_default, ru: ru_default };
-  var currentLang = "ru";
+  var currentLang = "en";
   function t(key) {
     const keys = key.split(".");
     let value = translations[currentLang];
@@ -808,262 +972,310 @@
       name: "shortcuts",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
       title: t("preferences.environment"),
       name: "environment",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
-      title: "\u041F\u0430\u043F\u043A\u0438",
+      title: t("preferences.folders"),
       name: "folders",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
-      title: "\u0420\u0435\u0435\u0441\u0442\u0440",
+      title: t("preferences.registry"),
       name: "registry",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
-      title: "\u0421\u0435\u0442\u0435\u0432\u044B\u0435 \u0434\u0438\u0441\u043A\u0438",
+      title: t("preferences.driveMaps"),
       name: "driveMaps",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
-      title: "\u0421\u0435\u0442\u0435\u0432\u044B\u0435 \u043F\u0430\u043F\u043A\u0438",
+      title: t("preferences.networkShares"),
       name: "networkShares",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
-      title: "\u0424\u0430\u0439\u043B\u044B",
+      title: t("preferences.files"),
       name: "files",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     },
     {
-      title: "Ini \u0444\u0430\u0439\u043B\u044B",
+      title: t("preferences.iniFiles"),
       name: "iniFiles",
       type: "file",
       icon: "ico-file",
-      template: "preferences"
+      template: "preferences",
+      header: {
+        class: "Machine"
+      }
     }
   ];
+
+  // src/app/components/tree-view/policy-converter.js
+  function convertPolicyCategory(categoryNode, ctx = {}) {
+    const hasInherited = categoryNode.inherited && categoryNode.inherited.length > 0;
+    const hasPolicies = categoryNode.policies && Object.keys(categoryNode.policies).length > 0;
+    if (!hasInherited && !hasPolicies) {
+      return null;
+    }
+    const sectionClass = ctx.sectionClass || "";
+    const baseSegments = Array.isArray(ctx.pathSegments) ? ctx.pathSegments : [];
+    const currentCategorySegments = [...baseSegments, categoryNode.category];
+    const currentCategoryPath = currentCategorySegments.join("/");
+    const children = [];
+    if (hasInherited) {
+      for (const subCategory of categoryNode.inherited) {
+        const converted = convertPolicyCategory(subCategory, {
+          sectionClass,
+          pathSegments: [...currentCategorySegments, "inherited"]
+        });
+        if (converted !== null) {
+          children.push(converted);
+        }
+      }
+    }
+    if (hasPolicies) {
+      for (const [key, policy] of Object.entries(categoryNode.policies)) {
+        children.push({
+          title: policy.displayName,
+          type: "file",
+          icon: "ico-file",
+          policyKey: key,
+          policyData: policy,
+          template: "admx",
+          admxTreePath: [...currentCategorySegments, "policies"].join("/")
+        });
+      }
+    }
+    return {
+      title: categoryNode.category,
+      type: "folder",
+      opened: false,
+      icon: "ico-folder",
+      children: children.length > 0 ? children : void 0
+    };
+  }
+  function convertPolicySection(section, sectionClass = "") {
+    if (!section || !section.categories) return [];
+    return section.categories.map((cat) => convertPolicyCategory(cat, {
+      sectionClass,
+      pathSegments: [sectionClass, "categories"]
+    })).filter((cat) => cat !== null);
+  }
 
   // src/app/components/tree-view/tree-view-list-data.js
-  var treeViewList = [
-    {
-      title: t("policies.localGroupPolicy"),
-      type: "folder",
-      opened: true,
-      icon: null,
-      children: [
-        {
-          title: "\u041A\u043E\u043C\u043F\u044C\u044E\u0442\u0435\u0440",
-          type: "folder",
-          opened: true,
-          icon: "ico-computer",
-          children: [
-            {
-              title: "\u0410\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0430\u0442\u0438\u0432\u043D\u044B\u0435 \u0448\u0430\u0431\u043B\u043E\u043D\u044B",
-              type: "folder",
-              opened: false,
-              icon: "ico-folder",
-              children: [
-                {
-                  title: "\u0421\u0438\u0441\u0442\u0435\u043C\u0430 Alt",
-                  type: "folder",
-                  opened: false,
-                  icon: "ico-folder",
-                  children: [
-                    {
-                      title: "\u0411\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u043E\u0441\u0442\u044C",
-                      type: "file",
-                      icon: "ico-folder"
-                    },
-                    {
-                      title: "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u044F",
-                      type: "file",
-                      icon: "ico-folder"
-                    },
-                    {
-                      title: "\u0413\u0440\u0430\u0444\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u043F\u043E\u0434\u0441\u0438\u0441\u0442\u0435\u043C\u0430",
-                      type: "file",
-                      icon: "ico-folder"
-                    },
-                    {
-                      title: "...",
-                      type: "file",
-                      icon: "ico-folder"
+  function buildTreeViewList(policyData = {}) {
+    const machineCategories = convertPolicySection(policyData.Machine, "Machine");
+    const userCategories = convertPolicySection(policyData.User, "User");
+    return [
+      {
+        title: t("policies.localGroupPolicy"),
+        type: "folder",
+        opened: true,
+        icon: null,
+        help: "Local group policies templates",
+        children: [
+          {
+            title: t("policies.machine"),
+            type: "folder",
+            opened: true,
+            icon: "ico-computer",
+            help: "Machine level policies",
+            children: [
+              {
+                title: t("policies.adminTemplates"),
+                type: "folder",
+                opened: true,
+                icon: "ico-folder",
+                children: machineCategories,
+                help: "Machine administrative templates"
+              },
+              {
+                title: t("preferences.title"),
+                type: "folder",
+                opened: false,
+                icon: "ico-folder",
+                help: "Preferences policies.",
+                children: [
+                  {
+                    title: t("preferences.systemSettings"),
+                    //'Настройки системы',
+                    type: "folder",
+                    opened: false,
+                    icon: "ico-folder",
+                    children: treepreferences,
+                    help: "Policies that set system settings."
+                  }
+                ]
+              },
+              {
+                title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0441\u0438\u0441\u0442\u0435\u043C\u044B",
+                type: "folder",
+                opened: false,
+                icon: "ico-folder",
+                children: [
+                  {
+                    title: "\u0421\u043A\u0440\u0438\u043F\u0442\u044B",
+                    type: "file",
+                    opened: false,
+                    icon: "ico-file",
+                    template: "scripts",
+                    header: {
+                      class: "Machine"
                     }
-                  ]
-                }
-              ]
-            },
-            {
-              title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438",
-              type: "folder",
-              opened: true,
-              icon: "ico-folder",
-              children: [
-                {
-                  title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0441\u0438\u0441\u0442\u0435\u043C\u044B",
-                  type: "folder",
-                  opened: true,
-                  icon: "ico-folder",
-                  children: treepreferences
-                }
-              ]
-            },
-            {
-              title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0441\u0438\u0441\u0442\u0435\u043C\u044B",
-              type: "folder",
-              opened: false,
-              icon: "ico-folder",
-              children: [
-                {
-                  title: "\u0421\u043A\u0440\u0438\u043F\u0442\u044B",
-                  type: "folder",
-                  opened: false,
-                  icon: "ico-folder"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          title: t("policies.user"),
-          type: "folder",
-          opened: true,
-          icon: "ico-user",
-          children: [
-            {
-              title: t("policies.adminTemplates"),
-              type: "folder",
-              opened: false,
-              icon: "ico-folder"
-            },
-            {
-              title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438",
-              type: "folder",
-              opened: false,
-              icon: "ico-folder"
-            },
-            {
-              title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0441\u0438\u0441\u0442\u0435\u043C\u044B",
-              type: "folder",
-              opened: false,
-              icon: "ico-folder"
-            }
-          ]
-        }
-      ]
-    }
-  ];
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            title: t("policies.user"),
+            type: "folder",
+            opened: false,
+            icon: "ico-user",
+            help: "User level policies",
+            children: [
+              {
+                title: t("policies.adminTemplates"),
+                type: "folder",
+                opened: false,
+                icon: "ico-folder",
+                children: userCategories
+              },
+              {
+                title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438",
+                type: "folder",
+                opened: false,
+                icon: "ico-folder"
+              },
+              {
+                title: "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0441\u0438\u0441\u0442\u0435\u043C\u044B",
+                type: "folder",
+                opened: false,
+                icon: "ico-folder"
+              }
+            ]
+          }
+        ]
+      }
+    ];
+  }
+  async function loadTreeViewList() {
+    console.log('[loadTreeViewList] Starting, mainPolicy:', mainPolicy ? 'exists' : 'null');
 
-  // src/app/components/tree-view/tree-view-list.js
-  function renderTreeItem(item, treeViewState2) {
-    const classes = ["view"];
-    if (item.type === "folder") {
-      classes.push("folder");
-      classes.push(item.opened ? "opened" : "closed");
-    } else {
-      classes.push("file");
-    }
-    const treeItem = createElement("span", {
-      className: "tree-item",
-      children: []
+    // Ждём пока mainPolicy будет не null
+    await waitForPolicy(function(policyData) {
+      console.log('[loadTreeViewList] waitForPolicy resolved, setting mainPolicy');
+      // mainPolicy уже установлен в loadMainPolicy, ничего делать не нужно
     });
-    if (item.type === "folder") {
-      treeItem.append(createElement("span", {
-        className: "icon-switcher"
-      }));
-    }
-    if (item.icon) {
-      treeItem.append(createElement("span", {
-        className: ["icon", item.icon]
-      }));
-    }
-    treeItem.append(createElement("span", {
-      className: "tree-item__title",
-      text: item.title
-    }));
-    const listItem = createElement("li", {
-      className: classes,
-      children: [treeItem]
-    });
-    if (item.children && item.children.length > 0) {
-      const nestedList = renderTreeList(item.children, treeViewState2);
-      listItem.append(nestedList);
-      if (item.type === "folder" && !item.opened) {
-        nestedList.setStyle({ display: "none" });
-      }
-    }
-    treeItem.on("click", (e) => {
-      e.stopPropagation();
-      const clickedElement = e.currentTarget;
-      const allTreeItems = document.querySelectorAll(".tree-item");
-      allTreeItems.forEach((treeItemEl) => {
-        treeItemEl.classList.remove("active");
-      });
-      clickedElement.classList.add("active");
-      if (item.type === "folder" && item.children && item.children.length > 0) {
-        toggleFolder(listItem, item);
-      }
-      if (treeViewState2) {
-        treeViewState2.setSelectedItem(item, clickedElement);
-      }
-    });
-    return listItem;
-  }
-  function renderTreeList(items, treeViewState2) {
-    const list = createElement("ul", {
-      className: "tree-view__list",
-      children: items.map((item) => renderTreeItem(item, treeViewState2))
-    });
-    return list;
-  }
-  function toggleFolder(listItem, item) {
-    const element = listItem.getElement();
-    const nestedList = element.querySelector("ul.tree-view__list");
-    if (!nestedList) return;
-    const isOpened = element.classList.contains("opened");
-    if (isOpened) {
-      element.classList.remove("opened");
-      element.classList.add("closed");
-      nestedList.style.display = "none";
-      item.opened = false;
-    } else {
-      element.classList.remove("closed");
-      element.classList.add("opened");
-      nestedList.style.display = "";
-      item.opened = true;
-    }
-  }
-  function renderTreeViewList(data = treeViewList, workspace = null, treeViewState2 = null) {
-    if (workspace && treeViewState2) {
-      treeViewState2.setWorkspace(workspace);
-    }
-    return renderTreeList(data, treeViewState2);
+
+    console.log('[loadTreeViewList] After await, mainPolicy:', mainPolicy ? 'exists' : 'null');
+    
+    // Теперь mainPolicy гарантированно содержит данные
+    const policyModule = mainPolicy;
+    const policyData = policyModule?.default ?? policyModule;
+    console.log('[loadTreeViewList] policyData:', policyData ? 'OK' : 'null');
+    return buildTreeViewList(policyData);
   }
 
   // src/app/components/tree-view/tree-view.js
+  var TREE_VIEW_MESSAGES = {
+    loading: "Loading policies...",
+    error: "Unable to load policies."
+  };
+  function renderTreeViewStatus(type = "loading") {
+    const isError = type === "error";
+    const children = [];
+    if (!isError) {
+      children.push(createElement("span", {
+        className: "tree-view__status-spinner",
+        attrs: {
+          "aria-hidden": "true"
+        }
+      }));
+    }
+    children.push(createElement("span", {
+      className: "tree-view__status-text",
+      text: isError ? TREE_VIEW_MESSAGES.error : TREE_VIEW_MESSAGES.loading
+    }));
+    return createElement("div", {
+      className: ["tree-view__status", isError ? "tree-view__status--error" : "tree-view__status--loading"],
+      attrs: {
+        role: isError ? "alert" : "status",
+        "aria-live": isError ? "assertive" : "polite"
+      },
+      children
+    });
+  }
+  async function initializeTreeView(element, workspace = null, treeViewState2 = null) {
+    if (workspace && treeViewState2) {
+      treeViewState2.setWorkspace(workspace);
+      treeViewState2.setTreeData([]);
+    }
+    element.clear();
+    element.append(renderTreeViewStatus("loading"));
+    try {
+      const treeData = await loadTreeViewList();
+      element.clear();
+      element.append(renderTreeViewList(treeData, workspace, treeViewState2));
+      treeViewState2?.initializeSelection?.();
+    } catch (error) {
+      console.error("[tree-view] Failed to load policy-en.json.", error);
+      if (workspace) {
+        workspace.clear();
+      }
+      if (treeViewState2) {
+        treeViewState2.setTreeData([]);
+        treeViewState2.syncHelpButtonState?.();
+        treeViewState2.syncHelpBlockState?.();
+      }
+      element.clear();
+      element.append(renderTreeViewStatus("error"));
+    }
+  }
   function renderTreeView(workspace = null, treeViewState2 = null) {
     const element = createElement("div", {
-      className: "tree-view",
-      children: [renderTreeViewList(void 0, workspace, treeViewState2)]
+      className: "tree-view"
     });
+    void initializeTreeView(element, workspace, treeViewState2);
     return element;
   }
 
@@ -1111,33 +1323,929 @@
 
   // src/app/util/resizable.js
   function resizable(divider, panel, container2, options = {}) {
+    if (!divider || !panel || !container2) {
+      return () => {
+      };
+    }
     const minWidth = options.minWidth || 50;
     const maxWidth = options.maxWidth || container2.offsetWidth - 50;
     let isResizing = false;
-    let startX;
-    let startWidth;
-    divider.addEventListener("mousedown", (e) => {
+    let startX = 0;
+    let startWidth = 0;
+    const handleMouseDown = (e) => {
       isResizing = true;
       startX = e.clientX;
       startWidth = panel.offsetWidth;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       e.preventDefault();
-    });
-    document.addEventListener("mousemove", (e) => {
+    };
+    const handleMouseMove = (e) => {
       if (!isResizing) return;
       const newWidth = startWidth + (e.clientX - startX);
       const calculatedMaxWidth = maxWidth === container2.offsetWidth - 50 ? container2.offsetWidth - 50 : maxWidth;
       if (newWidth >= minWidth && newWidth <= calculatedMaxWidth) {
         panel.style.width = `${newWidth}px`;
       }
+    };
+    const stopResizing = () => {
+      isResizing = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    divider.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", stopResizing);
+    return () => {
+      divider.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", stopResizing);
+      stopResizing();
+    };
+  }
+
+  // src/app/components/templates/default-template.js
+  function renderDefaultTemplate() {
+    const defaultTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D \u043D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D"
+        })
+      ]
     });
-    document.addEventListener("mouseup", () => {
-      if (isResizing) {
-        isResizing = false;
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
+    return defaultTemplate;
+  }
+
+  // src/app/components/templates/scripts-template.js
+  function renderScriptsTemplate() {
+    const defaultTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D \u0441\u043A\u0440\u0438\u043F\u0442\u0430 \u043D\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u043E\u0432\u0430\u043D"
+        })
+      ]
+    });
+    return defaultTemplate;
+  }
+
+  // src/app/util/safe-storage.js
+  function getItemSafe(key, schema, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return fallback;
+      const parsed = JSON.parse(raw);
+      if (typeof schema === "function" && !schema(parsed)) {
+        console.warn(
+          `[safe-storage] "${key}": data failed schema validation, using fallback`
+        );
+        return fallback;
       }
+      return parsed;
+    } catch (error) {
+      console.warn(
+        `[safe-storage] "${key}": read/parse error, using fallback`,
+        error
+      );
+      return fallback;
+    }
+  }
+  function setItemSafe(key, value, schema = null) {
+    try {
+      if (typeof schema === "function" && !schema(value)) {
+        console.warn(
+          `[safe-storage] "${key}": value failed schema validation, write rejected`
+        );
+        return false;
+      }
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (error) {
+      console.warn(`[safe-storage] "${key}": write error`, error);
+      return false;
+    }
+  }
+  function ensureInitialized(key, seed, schema = null) {
+    const existing = getItemSafe(key, schema, void 0);
+    if (existing !== void 0) return false;
+    return setItemSafe(key, seed, schema);
+  }
+
+  // src/app/util/mainLocalStorage/admx.js
+  var STORAGE_KEY = "admx";
+  var VALID_STATES = /* @__PURE__ */ new Set(["not-configured", "enabled", "disabled"]);
+  function isPlainObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function validateAdmxEntry(entry, key) {
+    if (!isPlainObject(entry)) {
+      return false;
+    }
+    if (entry.path !== key) {
+      return false;
+    }
+    if (typeof entry.type !== "string" || entry.type.length === 0) {
+      return false;
+    }
+    if (!VALID_STATES.has(entry.state)) {
+      return false;
+    }
+    return Object.prototype.hasOwnProperty.call(entry, "value");
+  }
+  function validateAdmxSchema(data) {
+    if (!isPlainObject(data)) {
+      return false;
+    }
+    return Object.entries(data).every(([key, value]) => validateAdmxEntry(value, key));
+  }
+  function initAdmxStorage() {
+    return ensureInitialized(STORAGE_KEY, {}, validateAdmxSchema);
+  }
+  function getAdmxFromLocalStorage() {
+    return getItemSafe(STORAGE_KEY, validateAdmxSchema, {});
+  }
+  function saveAdmxToLocalStorage(admxData) {
+    return setItemSafe(STORAGE_KEY, admxData, validateAdmxSchema);
+  }
+  function getAdmxEntriesByPaths(paths = []) {
+    const admx = getAdmxFromLocalStorage();
+    return paths.reduce((accumulator, path) => {
+      if (typeof path !== "string" || path.length === 0) {
+        return accumulator;
+      }
+      if (Object.prototype.hasOwnProperty.call(admx, path)) {
+        accumulator[path] = admx[path];
+      }
+      return accumulator;
+    }, {});
+  }
+  function upsertAdmxEntries(entries = []) {
+    if (!Array.isArray(entries)) {
+      return false;
+    }
+    const admx = getAdmxFromLocalStorage();
+    entries.forEach((entry) => {
+      if (!isPlainObject(entry) || typeof entry.path !== "string" || entry.path.length === 0) {
+        return;
+      }
+      admx[entry.path] = entry;
+    });
+    return saveAdmxToLocalStorage(admx);
+  }
+
+  // src/app/components/templates/admx-template.js
+  var ADMX_DEFAULT_STATE = "not-configured";
+  function addManagedEventListener(cleanups, target, eventName, handler, options) {
+    if (!target || typeof target.addEventListener !== "function" || typeof handler !== "function") {
+      return;
+    }
+    target.addEventListener(eventName, handler, options);
+    cleanups.push(() => target.removeEventListener(eventName, handler, options));
+  }
+  function formatExplainText(explainText = "") {
+    return explainText.split(/\r?\n/).flatMap((line, index, lines) => index < lines.length - 1 ? [line, createElement("br")] : [line]);
+  }
+  function extractStoragePathFromData(data = "") {
+    if (typeof data !== "string") {
+      return "";
+    }
+    const match = data.match(/Read_Path_GPT\((['"])(.*?)\1\)/);
+    return match?.[2] ?? "";
+  }
+  function resolvePolicyPath({ entryKey = "", metadata = {}, policyHeader = {} } = {}) {
+    if (entryKey.startsWith("\\")) {
+      const headerKey = policyHeader?.key ?? "";
+      const valueName = metadata?.valueName ?? "";
+      if (headerKey && valueName) {
+        return `${headerKey}\\${valueName}`;
+      }
+      if (valueName) {
+        return valueName;
+      }
+    }
+    return entryKey;
+  }
+  function normalizePolicyEntries(policyData = {}, policyHeader = {}) {
+    const controlEntries = [];
+    let policyValueEntry = null;
+    Object.entries(policyData).forEach(([entryKey, entryValue]) => {
+      if (entryKey === "displayName" || entryKey === "header") {
+        return;
+      }
+      const metadata = entryValue?.metadata;
+      if (!metadata) {
+        return;
+      }
+      const resolvedPolicyPath = resolvePolicyPath({ entryKey, metadata, policyHeader });
+      const normalizedEntry = {
+        entryKey,
+        metadata,
+        policyPath: resolvedPolicyPath,
+        storagePath: extractStoragePathFromData(entryValue?.data) || resolvedPolicyPath
+      };
+      if (metadata.type === "policyValue") {
+        if (!policyValueEntry) {
+          policyValueEntry = normalizedEntry;
+        }
+        return;
+      }
+      controlEntries.push(normalizedEntry);
+    });
+    return { controlEntries, policyValueEntry };
+  }
+  function getEnumDefaultValue(items = {}, defaultItem) {
+    const itemKeys = Object.keys(items);
+    if (itemKeys.length === 0) {
+      return "";
+    }
+    if (defaultItem !== void 0 && defaultItem !== null) {
+      const normalizedDefault = String(defaultItem);
+      if (Object.prototype.hasOwnProperty.call(items, normalizedDefault)) {
+        return normalizedDefault;
+      }
+    }
+    return itemKeys[0];
+  }
+  function createCommonControlAttrs({ metadata = {}, policyPath = "", storagePath = "", type = "", isDisabled = true } = {}) {
+    return {
+      name: metadata.id ?? metadata.valueName ?? "admx-control",
+      disabled: isDisabled ? "disabled" : null,
+      "data-policy-path": policyPath,
+      "data-storage-path": storagePath || policyPath,
+      "data-policy-type": type
+    };
+  }
+  function renderUnsupportedControl() {
+    return createElement("div", {
+      className: "field__element",
+      text: "\u0412 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0435"
+    });
+  }
+  function renderEnumControl({ metadata = {}, policyPath = "", storagePath = "", isDisabled = true } = {}) {
+    const items = metadata.items ?? {};
+    const selectedValue = getEnumDefaultValue(items, metadata.defaultItem);
+    const optionEntries = Object.entries(items);
+    return createElement("div", {
+      className: "field__element",
+      children: [
+        createElement("select", {
+          attrs: createCommonControlAttrs({
+            metadata,
+            policyPath,
+            storagePath,
+            type: "enum",
+            isDisabled
+          }),
+          children: optionEntries.map(([value, label]) => createElement("option", {
+            attrs: {
+              value,
+              selected: value === selectedValue ? "selected" : null
+            },
+            text: label
+          }))
+        })
+      ]
+    });
+  }
+  function renderBooleanControl({ metadata = {}, policyPath = "", storagePath = "", isDisabled = true } = {}) {
+    return createElement("div", {
+      className: "field__element",
+      children: [
+        createElement("input", {
+          attrs: {
+            ...createCommonControlAttrs({
+              metadata,
+              policyPath,
+              storagePath,
+              type: "boolean",
+              isDisabled
+            }),
+            type: "checkbox"
+          }
+        })
+      ]
+    });
+  }
+  function renderDecimalControl({ metadata = {}, policyPath = "", storagePath = "", isDisabled = true } = {}) {
+    return createElement("div", {
+      className: "field__element",
+      children: [
+        createElement("input", {
+          attrs: {
+            ...createCommonControlAttrs({
+              metadata,
+              policyPath,
+              storagePath,
+              type: "decimal",
+              isDisabled
+            }),
+            type: "number",
+            min: metadata.minValue ?? null,
+            max: metadata.maxValue ?? null,
+            value: metadata.defaultValue ?? null
+          }
+        })
+      ]
+    });
+  }
+  function renderTextControl({ metadata = {}, policyPath = "", storagePath = "", isDisabled = true } = {}) {
+    return createElement("div", {
+      className: "field__element",
+      children: [
+        createElement("input", {
+          attrs: {
+            ...createCommonControlAttrs({
+              metadata,
+              policyPath,
+              storagePath,
+              type: "text",
+              isDisabled
+            }),
+            type: "text"
+          }
+        })
+      ]
+    });
+  }
+  function renderControlByType({ metadata = {}, policyPath = "", storagePath = "", isDisabled = true } = {}) {
+    const type = metadata?.type;
+    switch (type) {
+      case "enum":
+        return renderEnumControl({ metadata, policyPath, storagePath, isDisabled });
+      case "boolean":
+        return renderBooleanControl({ metadata, policyPath, storagePath, isDisabled });
+      case "decimal":
+        return renderDecimalControl({ metadata, policyPath, storagePath, isDisabled });
+      case "text":
+        return renderTextControl({ metadata, policyPath, storagePath, isDisabled });
+      case "list":
+        return renderUnsupportedControl();
+      default:
+        return renderUnsupportedControl();
+    }
+  }
+  function renderAdmxControlRow({ metadata = {}, policyPath = "", storagePath = "", isDisabled = true } = {}) {
+    return createElement("div", {
+      className: "gp__admx-item",
+      children: [
+        createElement("div", {
+          className: "gp__admx-description",
+          text: metadata.label ?? ""
+        }),
+        createElement("div", {
+          className: "gp__admx-options",
+          children: [
+            renderControlByType({ metadata, policyPath, storagePath, isDisabled })
+          ]
+        })
+      ]
+    });
+  }
+  function setControlsDisabledState(rootElement, shouldDisable) {
+    if (!rootElement) {
+      return;
+    }
+    const controls = rootElement.querySelectorAll(".gp__admx-options input, .gp__admx-options select, .gp__admx-options textarea");
+    controls.forEach((control) => {
+      control.disabled = shouldDisable;
+    });
+  }
+  function getSelectedAdmxState(rootElement) {
+    return rootElement?.querySelector('input[name="admx-state"]:checked')?.value ?? ADMX_DEFAULT_STATE;
+  }
+  function setSelectedAdmxState(rootElement, state = ADMX_DEFAULT_STATE) {
+    if (!rootElement) {
+      return;
+    }
+    const normalizedState = typeof state === "string" && state.length > 0 ? state : ADMX_DEFAULT_STATE;
+    const radioToSelect = rootElement.querySelector(`input[name="admx-state"][value="${CSS.escape(normalizedState)}"]`);
+    if (radioToSelect instanceof HTMLInputElement) {
+      radioToSelect.checked = true;
+    }
+  }
+  function syncControlsWithPolicyState(rootElement) {
+    if (!rootElement) {
+      return;
+    }
+    const currentState = getSelectedAdmxState(rootElement);
+    setControlsDisabledState(rootElement, currentState !== "enabled");
+  }
+  function getControlElementByStoragePath(rootElement, storagePath = "") {
+    if (!rootElement || !storagePath) {
+      return null;
+    }
+    return rootElement.querySelector(`[data-storage-path="${CSS.escape(storagePath)}"]`);
+  }
+  function readControlValue(controlElement, metadata = {}) {
+    if (!controlElement) {
+      return null;
+    }
+    switch (metadata?.type) {
+      case "boolean": {
+        const trueValue = Object.prototype.hasOwnProperty.call(metadata, "trueValue") ? metadata.trueValue : true;
+        const falseValue = Object.prototype.hasOwnProperty.call(metadata, "falseValue") ? metadata.falseValue : false;
+        return controlElement.checked ? trueValue : falseValue;
+      }
+      case "decimal": {
+        if (controlElement.value === "") {
+          return null;
+        }
+        const parsedValue = Number(controlElement.value);
+        return Number.isNaN(parsedValue) ? controlElement.value : parsedValue;
+      }
+      case "enum":
+      case "text":
+      default:
+        return controlElement.value;
+    }
+  }
+  function applyControlValue(controlElement, metadata = {}, value = null) {
+    if (!controlElement || value === void 0) {
+      return;
+    }
+    switch (metadata?.type) {
+      case "boolean": {
+        const trueValue = Object.prototype.hasOwnProperty.call(metadata, "trueValue") ? metadata.trueValue : true;
+        controlElement.checked = value === true || String(value) === String(trueValue);
+        return;
+      }
+      case "decimal":
+      case "enum":
+      case "text":
+      default:
+        controlElement.value = value ?? "";
+    }
+  }
+  function buildAdmxFormSnapshot({ rootElement, controlEntries = [] } = {}) {
+    return {
+      state: getSelectedAdmxState(rootElement),
+      controls: controlEntries.map(({ storagePath, metadata }) => {
+        const controlElement = getControlElementByStoragePath(rootElement, storagePath);
+        return {
+          path: storagePath,
+          type: metadata?.type ?? "",
+          value: readControlValue(controlElement, metadata)
+        };
+      })
+    };
+  }
+  function applyAdmxFormSnapshot({ rootElement, snapshot = null, controlEntries = [] } = {}) {
+    if (!rootElement || !snapshot) {
+      return;
+    }
+    setSelectedAdmxState(rootElement, snapshot.state);
+    const snapshotEntries = new Map(
+      Array.isArray(snapshot.controls) ? snapshot.controls.map((entry) => [entry.path, entry]) : []
+    );
+    controlEntries.forEach(({ storagePath, metadata }) => {
+      const snapshotEntry = snapshotEntries.get(storagePath);
+      if (!snapshotEntry) {
+        return;
+      }
+      const controlElement = getControlElementByStoragePath(rootElement, storagePath);
+      applyControlValue(controlElement, metadata, snapshotEntry.value);
+    });
+    syncControlsWithPolicyState(rootElement);
+  }
+  function resolveStoredState({ persistedEntries = {}, policyValueEntry = null, controlEntries = [] } = {}) {
+    const candidatePaths = [
+      policyValueEntry?.storagePath ?? null,
+      ...controlEntries.map(({ storagePath }) => storagePath)
+    ].filter(Boolean);
+    for (const path of candidatePaths) {
+      const persistedEntry = persistedEntries[path];
+      if (persistedEntry?.state) {
+        return persistedEntry.state;
+      }
+    }
+    return ADMX_DEFAULT_STATE;
+  }
+  function restorePersistedAdmxValues({ rootElement, persistedEntries = {}, policyValueEntry = null, controlEntries = [] } = {}) {
+    if (!rootElement) {
+      return;
+    }
+    const restoredState = resolveStoredState({
+      persistedEntries,
+      policyValueEntry,
+      controlEntries
+    });
+    setSelectedAdmxState(rootElement, restoredState);
+    controlEntries.forEach(({ storagePath, metadata }) => {
+      const persistedEntry = persistedEntries[storagePath];
+      if (!persistedEntry) {
+        return;
+      }
+      const controlElement = getControlElementByStoragePath(rootElement, storagePath);
+      applyControlValue(controlElement, metadata, persistedEntry.value);
+    });
+    syncControlsWithPolicyState(rootElement);
+  }
+  function resolvePolicyValueForState(policyValueEntry = null, state = ADMX_DEFAULT_STATE) {
+    if (!policyValueEntry?.metadata) {
+      return null;
+    }
+    if (state === "enabled") {
+      return policyValueEntry.metadata.enabledValue ?? null;
+    }
+    if (state === "disabled") {
+      return policyValueEntry.metadata.disabledValue ?? null;
+    }
+    return null;
+  }
+  function buildPersistedAdmxEntries({
+    rootElement,
+    item = {},
+    admxTreePath = null,
+    controlEntries = [],
+    policyValueEntry = null
+  } = {}) {
+    const state = getSelectedAdmxState(rootElement);
+    const updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const policyTitle = item?.title ?? item?.policyData?.header?.displayName ?? null;
+    const policyKey = item?.policyKey ?? null;
+    const effectiveAdmxTreePath = admxTreePath ?? item?.admxTreePath ?? null;
+    const entriesByPath = /* @__PURE__ */ new Map();
+    controlEntries.forEach(({ storagePath, metadata }) => {
+      if (!storagePath) {
+        return;
+      }
+      const controlElement = getControlElementByStoragePath(rootElement, storagePath);
+      entriesByPath.set(storagePath, {
+        path: storagePath,
+        state,
+        type: metadata?.type ?? "unknown",
+        value: readControlValue(controlElement, metadata),
+        policyKey,
+        policyTitle,
+        admxTreePath: effectiveAdmxTreePath,
+        updatedAt
+      });
+    });
+    if (policyValueEntry?.storagePath) {
+      entriesByPath.set(policyValueEntry.storagePath, {
+        path: policyValueEntry.storagePath,
+        state,
+        type: "policyValue",
+        value: resolvePolicyValueForState(policyValueEntry, state),
+        policyKey,
+        policyTitle,
+        admxTreePath: effectiveAdmxTreePath,
+        updatedAt
+      });
+    }
+    return [...entriesByPath.values()];
+  }
+  function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null } = {}) {
+    const effectiveAdmxTreePath = admxTreePath ?? item?.admxTreePath ?? null;
+    const headerEl = header?.getElement?.();
+    const btnApply = headerEl?.querySelector(".admx__btn-apply") ?? null;
+    const btnCancel = headerEl?.querySelector(".admx__btn-cancel") ?? null;
+    const cleanups = [];
+    const policyData = item.policyData ?? {};
+    const policyHeader = policyData.header ?? {};
+    const { controlEntries, policyValueEntry } = normalizePolicyEntries(policyData, policyHeader);
+    const persistedEntries = getAdmxEntriesByPaths([
+      policyValueEntry?.storagePath ?? null,
+      ...controlEntries.map(({ storagePath }) => storagePath)
+    ].filter(Boolean));
+    const controlRows = controlEntries.map(({ metadata, policyPath, storagePath }) => renderAdmxControlRow({
+      metadata,
+      policyPath,
+      storagePath,
+      isDisabled: true
+    }));
+    const admxTemplate = createElement("div", {
+      className: "gp__admx-wrapper",
+      children: [
+        createElement("div", {
+          className: "gp__admx",
+          children: [
+            createElement("div", {
+              className: "gp__admx-settings",
+              children: [
+                createElement("div", {
+                  className: "title",
+                  children: [
+                    "\u041F\u043E\u043B\u0438\u0442\u0438\u043A\u0430: ",
+                    createElement("span", {
+                      className: "title__name",
+                      text: policyHeader.displayName ?? ""
+                    })
+                  ]
+                }),
+                createElement("div", {
+                  className: "gp__admx-state-policy-title",
+                  text: "\u0421\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u043F\u043E\u043B\u0438\u0442\u0438\u043A\u0438:"
+                }),
+                createElement("div", {
+                  className: "gp__admx-state-policy",
+                  attrs: {
+                    "data-policy-path": policyValueEntry?.policyPath ?? null,
+                    "data-enabled-value": policyValueEntry?.metadata?.enabledValue ?? null,
+                    "data-disabled-value": policyValueEntry?.metadata?.disabledValue ?? null
+                  },
+                  children: [
+                    createElement("label", {
+                      className: "gp__admx-radio",
+                      children: [
+                        createElement("input", {
+                          attrs: {
+                            type: "radio",
+                            name: "admx-state",
+                            value: "not-configured",
+                            checked: "checked"
+                          }
+                        }),
+                        createElement("span", {
+                          text: "\u041D\u0435 \u0441\u043A\u043E\u043D\u0444\u0438\u0433\u0443\u0440\u0438\u0440\u043E\u0432\u0430\u043D\u043E"
+                        })
+                      ]
+                    }),
+                    createElement("label", {
+                      className: "gp__admx-radio",
+                      children: [
+                        createElement("input", {
+                          attrs: {
+                            type: "radio",
+                            name: "admx-state",
+                            value: "enabled"
+                          }
+                        }),
+                        createElement("span", {
+                          text: "\u0412\u043A\u043B\u044E\u0447\u0435\u043D\u043E"
+                        })
+                      ]
+                    }),
+                    createElement("label", {
+                      className: "gp__admx-radio",
+                      children: [
+                        createElement("input", {
+                          attrs: {
+                            type: "radio",
+                            name: "admx-state",
+                            value: "disabled"
+                          }
+                        }),
+                        createElement("span", {
+                          text: "\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E"
+                        })
+                      ]
+                    })
+                  ]
+                }),
+                createElement("div", {
+                  className: "field__line"
+                })
+              ]
+            }),
+            createElement("div", {
+              className: "gp__admx-info",
+              children: [
+                createElement("div", {
+                  className: "gp__admx-item",
+                  children: [
+                    createElement("div", {
+                      className: "gp__admx-description",
+                      text: "\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435"
+                    }),
+                    createElement("div", {
+                      className: "gp__admx-options",
+                      text: "\u041E\u043F\u0446\u0438\u0438"
+                    })
+                  ]
+                }),
+                ...controlRows
+              ]
+            })
+          ]
+        }),
+        createElement("div", {
+          className: ["gp__admx-help", isHelpOpen ? "is-open" : null],
+          children: [
+            createElement("div", {
+              className: "gp__admx-supported",
+              children: [
+                createElement("div", {
+                  className: "title",
+                  text: "\u041F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044F \u043D\u0430:"
+                }),
+                createElement("div", {
+                  className: "gp__admx-content",
+                  text: policyHeader.supportedOn ?? ""
+                })
+              ]
+            }),
+            createElement("div", {
+              className: "gp__admx-comment",
+              children: [
+                createElement("div", {
+                  className: "title",
+                  text: "\u041A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0439:"
+                }),
+                createElement("textarea", {
+                  attrs: {
+                    name: "comment"
+                  }
+                })
+              ]
+            }),
+            createElement("div", {
+              className: "gp__admx-text-help",
+              children: [
+                createElement("div", {
+                  className: "title",
+                  text: "\u041F\u043E\u043C\u043E\u0449\u044C:"
+                }),
+                createElement("div", {
+                  className: "gp__admx-content",
+                  children: formatExplainText(policyHeader.explainText)
+                })
+              ]
+            })
+          ]
+        })
+      ]
+    });
+    const admxTemplateElement = admxTemplate.getElement();
+    const statePolicyElement = admxTemplateElement.querySelector(".gp__admx-state-policy");
+    const setHeaderAdmxButtonsActive = (active) => {
+      if (btnApply) btnApply.classList.toggle("active", active);
+      if (btnCancel) btnCancel.classList.toggle("active", active);
+    };
+    restorePersistedAdmxValues({
+      rootElement: admxTemplateElement,
+      persistedEntries,
+      policyValueEntry,
+      controlEntries
+    });
+    let initialFormSnapshot = buildAdmxFormSnapshot({
+      rootElement: admxTemplateElement,
+      controlEntries
+    });
+    const refreshHeaderAdmxButtons = () => {
+      const currentSnapshot = buildAdmxFormSnapshot({
+        rootElement: admxTemplateElement,
+        controlEntries
+      });
+      setHeaderAdmxButtonsActive(JSON.stringify(currentSnapshot) !== JSON.stringify(initialFormSnapshot));
+    };
+    setHeaderAdmxButtonsActive(false);
+    const handleStatePolicyChange = (event) => {
+      const targetElement = event.target;
+      if (!(targetElement instanceof HTMLInputElement)) {
+        return;
+      }
+      if (targetElement.name !== "admx-state") {
+        return;
+      }
+      syncControlsWithPolicyState(admxTemplateElement);
+      refreshHeaderAdmxButtons();
+    };
+    const handleControlsChange = (event) => {
+      const targetElement = event.target;
+      if (!(targetElement instanceof HTMLElement)) {
+        return;
+      }
+      if (!targetElement.closest(".gp__admx-options")) {
+        return;
+      }
+      refreshHeaderAdmxButtons();
+    };
+    addManagedEventListener(cleanups, statePolicyElement, "change", handleStatePolicyChange);
+    addManagedEventListener(cleanups, admxTemplateElement, "change", handleControlsChange);
+    addManagedEventListener(cleanups, admxTemplateElement, "input", handleControlsChange);
+    const handleCancel = () => {
+      if (!btnCancel?.classList.contains("active")) {
+        return;
+      }
+      applyAdmxFormSnapshot({
+        rootElement: admxTemplateElement,
+        snapshot: initialFormSnapshot,
+        controlEntries
+      });
+      refreshHeaderAdmxButtons();
+    };
+    const handleApply = () => {
+      if (!btnApply?.classList.contains("active")) {
+        return;
+      }
+      const admxEntries = buildPersistedAdmxEntries({
+        rootElement: admxTemplateElement,
+        item,
+        admxTreePath: effectiveAdmxTreePath,
+        controlEntries,
+        policyValueEntry
+      });
+      const didSave = upsertAdmxEntries(admxEntries);
+      if (!didSave) {
+        return;
+      }
+      initialFormSnapshot = buildAdmxFormSnapshot({
+        rootElement: admxTemplateElement,
+        controlEntries
+      });
+      setHeaderAdmxButtonsActive(false);
+    };
+    addManagedEventListener(cleanups, btnCancel, "click", handleCancel);
+    addManagedEventListener(cleanups, btnApply, "click", handleApply);
+    let cleanedUp = false;
+    admxTemplate.cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      while (cleanups.length > 0) {
+        const cleanup = cleanups.pop();
+        if (typeof cleanup === "function") {
+          cleanup();
+        }
+      }
+      setHeaderAdmxButtonsActive(false);
+    };
+    return admxTemplate;
+  }
+
+  // src/app/components/templates/folder-template.js
+  var HELP_PLACEHOLDER = [
+    "\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435",
+    "\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435",
+    "\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435",
+    "\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435\u043A\u0430\u043A\u043E\u0439-\u0442\u043E \u0440\u0430\u043D\u0434\u043E\u043C\u043D\u044B\u0439 \u0442\u0435\u043A\u0441\u0442, \u043D\u0435 \u0437\u043D\u0430\u044E \u043E \u0447\u0435\u043C)  \u0442\u0435\u043A\u0441\u0442\u0430 \u0431\u043E\u043B\u044C\u0448\u0435, \u0431\u043E\u043B\u044C\u0448\u0435"
+  ].join("\n");
+  function renderChildRow(item, onItemClick) {
+    const row = createElement("span", {
+      className: "workspace-list-item",
+      attrs: typeof onItemClick === "function" ? {
+        role: "button",
+        tabindex: "0"
+      } : {},
+      children: [
+        createElement("span", { className: ["icon", item.icon] }),
+        createElement("span", {
+          className: "gp__list-children__item__title",
+          text: item.title
+        })
+      ]
+    });
+    if (typeof onItemClick === "function") {
+      row.on("click", () => onItemClick(item));
+      row.on("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onItemClick(item);
+        }
+      });
+    }
+    return createElement("li", {
+      className: ["gp__list-children__item", item.type],
+      children: [row]
+    });
+  }
+  function renderHelpBlock({ help = void 0, isOpen = false } = {}) {
+    if (help === "") {
+      return null;
+    }
+    const helpText = help === void 0 ? HELP_PLACEHOLDER : help;
+    return createElement("div", {
+      className: ["gp__list-children-help", isOpen ? "is-open" : null],
+      children: [
+        createElement("div", {
+          className: "title",
+          text: "\u041F\u043E\u043C\u043E\u0449\u044C:"
+        }),
+        createElement("div", {
+          className: "content",
+          text: helpText
+        })
+      ]
+    });
+  }
+  function renderFolderTemplate({
+    children = [],
+    help = void 0,
+    onItemClick = null,
+    isHelpOpen = false
+  } = {}) {
+    const folderChildren = Array.isArray(children) ? children : [];
+    const helpBlock = renderHelpBlock({
+      help,
+      isOpen: isHelpOpen
+    });
+    return createElement("div", {
+      className: "gp__list-children-wrapper",
+      children: [
+        createElement("div", {
+          className: "gp__list-children",
+          children: [
+            createElement("ul", {
+              className: "gp__list-children__list",
+              children: folderChildren.map((child) => renderChildRow(child, onItemClick))
+            })
+          ]
+        }),
+        helpBlock
+      ]
     });
   }
 
@@ -1274,7 +2382,9 @@
   }
 
   // src/app/util/mainLocalStorage/shortcuts.js
-  var shortcutsData = [
+  var STORAGE_KEY2 = "shortcuts";
+  var VALID_TARGET_TYPES = /* @__PURE__ */ new Set([0, 1, 2]);
+  var SHORTCUTS_SEED = [
     {
       basic: {
         "ACTION": 3,
@@ -1323,7 +2433,7 @@
       basic: {
         "ACTION": 2,
         "SHORTCUT_PATH": "Mail",
-        "TARGET_TYPE": 3,
+        "TARGET_TYPE": 2,
         "TARGET_PATH": "/usr/bin/thunderbird",
         "LOCATION": 9,
         "ARGUMENTS": "",
@@ -1342,148 +2452,47 @@
       }
     }
   ];
-  function initShortcutsLocalStorage() {
-    if (!localStorage.getItem("shortcuts")) {
-      localStorage.setItem("shortcuts", JSON.stringify(shortcutsData));
-      console.log("Shortcuts localStorage initialized with 3 entries");
+  function isValidShortcutEntry(item) {
+    if (!item || typeof item !== "object") return false;
+    const { basic, common } = (
+      /** @type {Record<string, any>} */
+      item
+    );
+    if (!basic || typeof basic !== "object") return false;
+    if (!common || typeof common !== "object") return false;
+    if (typeof basic.ACTION !== "number") return false;
+    if (typeof basic.SHORTCUT_PATH !== "string") return false;
+    if (typeof basic.TARGET_TYPE !== "number" || !VALID_TARGET_TYPES.has(basic.TARGET_TYPE)) return false;
+    if (typeof basic.TARGET_PATH !== "string") return false;
+    if (typeof common.stopOnErrorCheckBox !== "boolean") return false;
+    if (typeof common.userContextCheckBox !== "boolean") return false;
+    if (typeof common.removeThisCheckBox !== "boolean") return false;
+    return true;
+  }
+  function validateShortcutsSchema(data) {
+    if (!Array.isArray(data)) return false;
+    return data.every(isValidShortcutEntry);
+  }
+  function initShortcutsStorage() {
+    const seeded = ensureInitialized(
+      STORAGE_KEY2,
+      SHORTCUTS_SEED,
+      validateShortcutsSchema
+    );
+    if (seeded) {
+      console.log("Shortcuts localStorage initialized with seed data");
     } else {
-      console.log("Shortcuts localStorage already exists");
+      console.log("Shortcuts localStorage already contains valid data");
     }
   }
-  initShortcutsLocalStorage();
   function getShortcutsFromLocalStorage() {
-    const data = localStorage.getItem("shortcuts");
-    return data ? JSON.parse(data) : [];
+    return getItemSafe(STORAGE_KEY2, validateShortcutsSchema, []);
   }
   function saveShortcutsToLocalStorage(shortcuts) {
-    localStorage.setItem("shortcuts", JSON.stringify(shortcuts));
+    return setItemSafe(STORAGE_KEY2, shortcuts, validateShortcutsSchema);
   }
 
-  // src/app/components/workspace/preferences-table-shortcuts.js
-  var ACTION_LABELS = { 0: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C", 1: "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C", 2: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C", 3: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C" };
-  function renderSettingsItems(common) {
-    const bool = (val) => val ? "\u0414\u0430" : "\u041D\u0435\u0442";
-    const item = (label, value, empty = false) => createElement("div", {
-      className: empty ? ["preference__settings-item", "empty"] : "preference__settings-item",
-      children: [
-        createElement("div", { text: label }),
-        createElement("div", { text: value })
-      ]
-    }).getElement();
-    return [
-      item("\u041D\u0435 \u043E\u0431\u0440\u0430\u0431\u0430\u0442\u044B\u0432\u0430\u0442\u044C \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0432 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0438 \u043F\u0440\u0438 \u043E\u0448\u0438\u0431\u043A\u0435:", bool(common.stopOnErrorCheckBox)),
-      item("\u0417\u0430\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0432 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F:", bool(common.userContextCheckBox)),
-      item("\u0423\u0434\u0430\u043B\u0438\u0442\u044C, \u0435\u0441\u043B\u0438 \u043D\u0435 \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u043C\u043E:", bool(common.removeThisCheckBox)),
-      item("\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u043E\u0434\u0438\u043D \u0440\u0430\u0437:", "\u041D\u0435\u0442", true),
-      item("\u041E\u0442\u0444\u0438\u043B\u044C\u0442\u0440\u043E\u0432\u0430\u043D\u043E:", "\u041D\u0435\u0442", true),
-      item("\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E:", "\u041D\u0435\u0442", true),
-      item("\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u0443\u0440\u043E\u0432\u043D\u0435\u043C \u0432\u044B\u0448\u0435:", "\u041D\u0435\u0442", true)
-    ];
-  }
-  function updatePreferenceInfo(preferenceRoot, index) {
-    if (!preferenceRoot) return;
-    const shortcuts = getShortcutsFromLocalStorage();
-    if (index == null || !shortcuts[index]) return;
-    const common = shortcuts[index].common;
-    const descriptionEl = preferenceRoot.querySelector(".preference__description-data");
-    if (descriptionEl) {
-      descriptionEl.textContent = common.description ?? "";
-    }
-    const settingsEl = preferenceRoot.querySelector(".preference__settings-data");
-    if (settingsEl) {
-      settingsEl.innerHTML = "";
-      renderSettingsItems(common).forEach((el) => settingsEl.appendChild(el));
-    }
-  }
-  function createTableRow(row, active = false, namePreference = "shortcuts") {
-    const name = row.SHORTCUT_PATH ?? row.name ?? "";
-    const order = row.order ?? "";
-    const actionText = row.ACTION != null ? typeof row.ACTION === "number" ? ACTION_LABELS[row.ACTION] : row.ACTION : row.action ?? "";
-    const target = row.TARGET_PATH ?? row.value ?? "";
-    return createElement("tr", {
-      className: active ? "active" : void 0,
-      events: {
-        click: (event) => {
-          const tbody = event.currentTarget.closest("tbody");
-          if (tbody) {
-            tbody.querySelectorAll("tr").forEach((tr) => tr.classList.remove("active"));
-            event.currentTarget.classList.add("active");
-          }
-          const orderIndex = row.order;
-          const preferenceRoot = event.currentTarget.closest(".gp__preference");
-          updatePreferenceInfo(preferenceRoot, orderIndex);
-          document.dispatchEvent(new CustomEvent("preferences-row-select", { detail: { index: row.order } }));
-        }
-      },
-      children: [
-        createElement("td", { text: String(name) }),
-        createElement("td", { text: String(order) }),
-        createElement("td", { text: String(actionText) }),
-        createElement("td", { text: String(target) })
-      ]
-    });
-  }
-  function renderPreferencesTableShortcuts(rows = [], activeIndex = 0, namePreference = "shortcuts") {
-    const shortcuts = getShortcutsFromLocalStorage();
-    const basic = (item) => item.basic ?? item;
-    const defaultRows = shortcuts.map((item, index) => ({
-      SHORTCUT_PATH: basic(item).SHORTCUT_PATH ?? "",
-      order: index,
-      ACTION: basic(item).ACTION,
-      TARGET_PATH: basic(item).TARGET_PATH ?? ""
-    }));
-    const dataRows = rows.length > 0 ? rows : defaultRows;
-    if (dataRows.length === 0) {
-      return createElement("div", {
-        className: "preference__data-table",
-        children: [
-          createElement("div", {
-            className: "preference__data-empty",
-            children: [
-              createElement("div", {
-                className: "preference__data-message",
-                text: "\u0412 \u043D\u0430\u0441\u0442\u043E\u044F\u0449\u0438\u0439 \u043C\u043E\u043C\u0435\u043D\u0442 \u043F\u043E\u043B\u0438\u0442\u0438\u043A \u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E"
-              })
-            ]
-          })
-        ]
-      });
-    }
-    const safeActiveIndex = Math.max(0, Math.min(activeIndex, dataRows.length - 1));
-    const tbodyRows = dataRows.map(
-      (row, index) => createTableRow(row, index === safeActiveIndex, namePreference)
-    );
-    const table = createElement("table", {
-      className: "preference__table",
-      children: [
-        createElement("thead", {
-          children: [
-            createElement("tr", {
-              children: [
-                createElement("th", { text: "\u0418\u043C\u044F" }),
-                createElement("th", { text: "\u041E\u0447\u0435\u0440\u0451\u0434\u043D\u043E\u0441\u0442\u044C" }),
-                createElement("th", { text: "\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435" }),
-                createElement("th", { text: "\u0426\u0435\u043B\u044C" })
-              ]
-            })
-          ]
-        }),
-        createElement("tbody", {
-          children: tbodyRows
-        })
-      ]
-    });
-    document.dispatchEvent(new CustomEvent("preferences-row-select", { detail: { index: safeActiveIndex } }));
-    setTimeout(() => {
-      const preferenceRoot = table.getElement()?.closest(".gp__preference");
-      if (preferenceRoot && dataRows.length > 0) {
-        updatePreferenceInfo(preferenceRoot, safeActiveIndex);
-      }
-    }, 0);
-    return table;
-  }
-
-  // src/app/components/workspace/preferences-template-shortcuts.js
+  // src/app/components/templates/preference/shortcuts/preferences-template-shortcuts.js
   function renderPreferencesShortcutsTemplate() {
     const container2 = createElement("div", {
       className: "preferences-shortcuts",
@@ -1748,8 +2757,7 @@
               children: [
                 createElement("input", {
                   attrs: {
-                    type: "text",
-                    placeholder: "/home/user"
+                    type: "text"
                   }
                 })
               ]
@@ -1976,7 +2984,7 @@
     return element.value;
   }
 
-  // src/app/components/workspace/create-preference.js
+  // src/app/components/templates/preference/create-preference.js
   var SHORTCUT_NUMBER_KEYS = ["ACTION", "TARGET_TYPE", "LOCATION", "WINDOW", "ICON_INDEX"];
   function collectPreferencesFromTabBasic(tabBasicEl) {
     if (!tabBasicEl) return {};
@@ -2041,8 +3049,13 @@
         }
       });
       if ("TARGET_TYPE" in normalizedBasic) {
-        const v = Number(normalizedBasic.TARGET_TYPE);
-        normalizedBasic.TARGET_TYPE = Number.isNaN(v) ? 0 : Math.max(0, Math.min(2, Math.floor(v)));
+        const v = normalizedBasic.TARGET_TYPE;
+        if (typeof v !== "number" || !VALID_TARGET_TYPES.has(v)) {
+          console.warn(
+            `[shortcuts] TARGET_TYPE has unexpected value: ${v}.`,
+            "Legacy data may need explicit migration."
+          );
+        }
       }
       const normalizedCommon = { ...commonData };
       const list = getShortcutsFromLocalStorage();
@@ -2060,16 +3073,382 @@
     }
   }
 
-  // src/app/components/workspace/preferences-template.js
-  function renderPreferencesTemplate() {
+  // src/app/components/templates/preference/shortcuts/preferences-table-shortcuts.js
+  var ACTION_LABELS = { 0: "\u0421\u043E\u0437\u0434\u0430\u0442\u044C", 1: "\u0417\u0430\u043C\u0435\u043D\u0438\u0442\u044C", 2: "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C", 3: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C" };
+  function renderSettingsItems(common) {
+    const bool = (val) => val ? "\u0414\u0430" : "\u041D\u0435\u0442";
+    const item = (label, value, empty = false) => createElement("div", {
+      className: empty ? ["preference__settings-item", "empty"] : "preference__settings-item",
+      children: [
+        createElement("div", { text: label }),
+        createElement("div", { text: value })
+      ]
+    }).getElement();
+    return [
+      item("\u041D\u0435 \u043E\u0431\u0440\u0430\u0431\u0430\u0442\u044B\u0432\u0430\u0442\u044C \u044D\u043B\u0435\u043C\u0435\u043D\u0442\u044B \u0432 \u0440\u0430\u0441\u0448\u0438\u0440\u0435\u043D\u0438\u0438 \u043F\u0440\u0438 \u043E\u0448\u0438\u0431\u043A\u0435:", bool(common.stopOnErrorCheckBox)),
+      item("\u0417\u0430\u043F\u0443\u0441\u043A\u0430\u0442\u044C \u0432 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044F:", bool(common.userContextCheckBox)),
+      item("\u0423\u0434\u0430\u043B\u0438\u0442\u044C, \u0435\u0441\u043B\u0438 \u043D\u0435 \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u043C\u043E:", bool(common.removeThisCheckBox)),
+      item("\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u043E\u0434\u0438\u043D \u0440\u0430\u0437:", "\u041D\u0435\u0442", true),
+      item("\u041E\u0442\u0444\u0438\u043B\u044C\u0442\u0440\u043E\u0432\u0430\u043D\u043E:", "\u041D\u0435\u0442", true),
+      item("\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E:", "\u041D\u0435\u0442", true),
+      item("\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E \u0443\u0440\u043E\u0432\u043D\u0435\u043C \u0432\u044B\u0448\u0435:", "\u041D\u0435\u0442", true)
+    ];
+  }
+  function updatePreferenceInfo(preferenceRoot, index) {
+    if (!preferenceRoot) return;
+    const shortcuts = getShortcutsFromLocalStorage();
+    if (index == null || !shortcuts[index]) return;
+    const common = shortcuts[index].common;
+    const descriptionEl = preferenceRoot.querySelector(".preference__description-data");
+    if (descriptionEl) {
+      descriptionEl.textContent = common.description ?? "";
+    }
+    const settingsEl = preferenceRoot.querySelector(".preference__settings-data");
+    if (settingsEl) {
+      settingsEl.innerHTML = "";
+      renderSettingsItems(common).forEach((el) => settingsEl.appendChild(el));
+    }
+  }
+  function createTableRow(row, active = false, namePreference = "shortcuts") {
+    const name = row.SHORTCUT_PATH ?? row.name ?? "";
+    const order = row.order ?? "";
+    const actionText = row.ACTION != null ? typeof row.ACTION === "number" ? ACTION_LABELS[row.ACTION] : row.ACTION : row.action ?? "";
+    const target = row.TARGET_PATH ?? row.value ?? "";
+    return createElement("tr", {
+      className: active ? "active" : void 0,
+      events: {
+        click: (event) => {
+          const tbody = event.currentTarget.closest("tbody");
+          if (tbody) {
+            tbody.querySelectorAll("tr").forEach((tr) => tr.classList.remove("active"));
+            event.currentTarget.classList.add("active");
+          }
+          const orderIndex = row.order;
+          const preferenceRoot = event.currentTarget.closest(".gp__preference");
+          updatePreferenceInfo(preferenceRoot, orderIndex);
+          document.dispatchEvent(new CustomEvent("preferences-row-select", { detail: { index: row.order } }));
+        }
+      },
+      children: [
+        createElement("td", { text: String(name) }),
+        createElement("td", { text: String(order) }),
+        createElement("td", { text: String(actionText) }),
+        createElement("td", { text: String(target) })
+      ]
+    });
+  }
+  function renderPreferencesTableShortcuts(rows = [], activeIndex = 0, namePreference = "shortcuts") {
+    const shortcuts = getShortcutsFromLocalStorage();
+    const basic = (item) => item.basic ?? item;
+    const defaultRows = shortcuts.map((item, index) => ({
+      SHORTCUT_PATH: basic(item).SHORTCUT_PATH ?? "",
+      order: index,
+      ACTION: basic(item).ACTION,
+      TARGET_PATH: basic(item).TARGET_PATH ?? ""
+    }));
+    const dataRows = rows.length > 0 ? rows : defaultRows;
+    if (dataRows.length === 0) {
+      return createElement("div", {
+        className: "preference__data-table",
+        children: [
+          createElement("div", {
+            className: "preference__data-empty",
+            children: [
+              createElement("div", {
+                className: "preference__data-message",
+                text: "\u0412 \u043D\u0430\u0441\u0442\u043E\u044F\u0449\u0438\u0439 \u043C\u043E\u043C\u0435\u043D\u0442 \u043F\u043E\u043B\u0438\u0442\u0438\u043A \u043D\u0435 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E"
+              })
+            ]
+          })
+        ]
+      });
+    }
+    const safeActiveIndex = Math.max(0, Math.min(activeIndex, dataRows.length - 1));
+    const tbodyRows = dataRows.map(
+      (row, index) => createTableRow(row, index === safeActiveIndex, namePreference)
+    );
+    const table = createElement("table", {
+      className: "preference__table",
+      children: [
+        createElement("thead", {
+          children: [
+            createElement("tr", {
+              children: [
+                createElement("th", { text: "\u0418\u043C\u044F" }),
+                createElement("th", { text: "\u041E\u0447\u0435\u0440\u0451\u0434\u043D\u043E\u0441\u0442\u044C" }),
+                createElement("th", { text: "\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435" }),
+                createElement("th", { text: "\u0426\u0435\u043B\u044C" })
+              ]
+            })
+          ]
+        }),
+        createElement("tbody", {
+          children: tbodyRows
+        })
+      ]
+    });
+    document.dispatchEvent(new CustomEvent("preferences-row-select", { detail: { index: safeActiveIndex } }));
+    setTimeout(() => {
+      const preferenceRoot = table.getElement()?.closest(".gp__preference");
+      if (preferenceRoot && dataRows.length > 0) {
+        updatePreferenceInfo(preferenceRoot, safeActiveIndex);
+      }
+    }, 0);
+    return table;
+  }
+
+  // src/app/components/templates/preference/delete-preference.js
+  function handleDeletePreference(buttonEl, workspaceEl) {
+    if (!buttonEl) return;
+    const preferencesName = buttonEl.getAttribute("data-preferences-name");
+    const indexAttr = buttonEl.getAttribute("data-preferences-index");
+    if (!preferencesName || indexAttr === null || indexAttr === "") return;
+    const index = parseInt(indexAttr, 10);
+    if (Number.isNaN(index) || index < 0) return;
+    if (preferencesName === "shortcuts") {
+      const list = getShortcutsFromLocalStorage();
+      if (index >= list.length) return;
+      list.splice(index, 1);
+      saveShortcutsToLocalStorage(list);
+    } else {
+      return;
+    }
+    refreshPreferencesTable(workspaceEl);
+    if (preferencesName === "shortcuts" && getShortcutsFromLocalStorage().length === 0) {
+      buttonEl.classList.remove("active");
+      buttonEl.removeAttribute("data-preferences-index");
+    }
+  }
+  function refreshPreferencesTable(workspaceEl) {
+    const workspace = workspaceEl?.getElement ? workspaceEl.getElement() : workspaceEl;
+    const container2 = workspace ? workspace.querySelector(".preference__data-table") : document.querySelector(".workspace .preference__data-table");
+    if (!container2) return;
+    container2.innerHTML = "";
+    const table = renderPreferencesTableShortcuts();
+    container2.appendChild(table.getElement ? table.getElement() : table);
+  }
+
+  // src/app/components/templates/preference/edit-preference.js
+  function setFieldValue(fieldEl, value) {
+    const element = getValueElement(fieldEl);
+    if (!element) return;
+    const tagName = element.tagName.toLowerCase();
+    const type = (element.type || "").toLowerCase();
+    if (tagName === "select") {
+      element.value = String(value);
+      return;
+    }
+    if (tagName === "input" && (type === "checkbox" || type === "radio")) {
+      element.checked = Boolean(value);
+      return;
+    }
+    if (tagName === "input" || tagName === "textarea") {
+      element.value = value === void 0 || value === null ? "" : String(value);
+    }
+  }
+  function getStoredPreferenceData(modalEl) {
+    if (!modalEl) return null;
+    const storageKey = modalEl.getAttribute("data-preferences-name");
+    if (!storageKey) return null;
+    if (storageKey === "shortcuts") {
+      const list = getShortcutsFromLocalStorage();
+      const indexAttr = modalEl.getAttribute("data-preferences-index");
+      const index = indexAttr !== null && indexAttr !== "" ? parseInt(indexAttr, 10) : -1;
+      if (index >= 0 && index < list.length) return list[index];
+      return null;
+    }
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  function syncModalFromStoredData(modalEl) {
+    if (!modalEl) return;
+    const stored = getStoredPreferenceData(modalEl);
+    if (!stored || typeof stored !== "object") return;
+    const basicData = stored.basic ?? stored;
+    const commonData = stored.common ?? stored;
+    const tabBasic = modalEl.querySelector("#tab-basic");
+    if (tabBasic) {
+      tabBasic.querySelectorAll("[data-name]").forEach((fieldEl) => {
+        const name = fieldEl.getAttribute("data-name");
+        if (!name || !(name in basicData)) return;
+        const valueEl = getValueElement(fieldEl);
+        if (!valueEl) return;
+        const current = getFieldValue(fieldEl);
+        const needed = basicData[name];
+        const currentNorm = typeof current === "boolean" ? current : current === void 0 || current === null ? "" : String(current);
+        const neededNorm = typeof needed === "boolean" ? needed : needed === void 0 || needed === null ? "" : String(needed);
+        if (currentNorm !== neededNorm) {
+          setFieldValue(fieldEl, needed);
+        }
+      });
+    }
+    const tabGeneral = modalEl.querySelector("#tab-general");
+    if (tabGeneral) {
+      tabGeneral.querySelectorAll("[data-name]").forEach((fieldEl) => {
+        const name = fieldEl.getAttribute("data-name");
+        if (!name || !(name in commonData)) return;
+        const valueEl = getValueElement(fieldEl);
+        if (!valueEl) return;
+        const current = getFieldValue(fieldEl);
+        const needed = commonData[name];
+        const currentNorm = typeof current === "boolean" ? current : current === void 0 || current === null ? "" : String(current);
+        const neededNorm = typeof needed === "boolean" ? needed : needed === void 0 || needed === null ? "" : String(needed);
+        if (currentNorm !== neededNorm) {
+          setFieldValue(fieldEl, needed);
+        }
+      });
+    }
+  }
+  function openModalForEdit(btnEdit, modalEl) {
+    if (!btnEdit || !modalEl) return;
+    const name = btnEdit.getAttribute("data-preferences-name");
+    const index = btnEdit.getAttribute("data-preferences-index");
+    if (name != null) modalEl.setAttribute("data-preferences-name", name);
+    if (index != null) modalEl.setAttribute("data-preferences-index", index);
+    else modalEl.removeAttribute("data-preferences-index");
+    modalEl.setAttribute("data-preferences-mode", "edit");
+    resetActiveTabToBasic(modalEl);
+    syncModalFromStoredData(modalEl);
+    modalEl.classList.add("active");
+  }
+
+  // src/app/components/templates/preference/preferences-view-template.js
+  function addManagedEventListener2(cleanups, target, eventName, handler, options) {
+    if (!target || typeof target.addEventListener !== "function" || typeof handler !== "function") {
+      return;
+    }
+    target.addEventListener(eventName, handler, options);
+    cleanups.push(() => target.removeEventListener(eventName, handler, options));
+  }
+  function clearHeaderButtonState({ btnCreate, btnEdit, btnDelete, btnApply, btnCancel, btnInformation } = {}) {
+    [btnCreate, btnEdit, btnDelete, btnApply, btnCancel, btnInformation].filter(Boolean).forEach((buttonEl) => buttonEl.classList.remove("active"));
+    [btnCreate, btnEdit, btnDelete].filter(Boolean).forEach((buttonEl) => {
+      buttonEl.removeAttribute("data-preferences-name");
+      buttonEl.removeAttribute("data-preferences-index");
+    });
+  }
+  function initHeaderButtons(header) {
+    const headerEl = header?.getElement();
+    const control = headerEl?.querySelector(".gp__control");
+    const btnCreate = control?.querySelector(".preferences__btn-create");
+    const btnEdit = control?.querySelector(".preferences__btn-edit");
+    const btnDelete = control?.querySelector(".preferences__btn-delete");
+    if (btnCreate && !btnCreate.classList.contains("active")) {
+      btnCreate.classList.add("active");
+    }
+    if (btnEdit) btnEdit.classList.remove("active");
+    if (btnDelete) btnDelete.classList.remove("active");
+    const controlAdmx = headerEl?.querySelector(".gp__control-admx");
+    const btnApply = controlAdmx?.querySelector(".admx__btn-apply");
+    const btnCancel = controlAdmx?.querySelector(".admx__btn-cancel");
+    if (btnApply) btnApply.classList.remove("active");
+    if (btnCancel) btnCancel.classList.remove("active");
+    const controlHelp = headerEl?.querySelector(".gp__control-help");
+    const btnInformation = controlHelp?.querySelector(".btn-information");
+    if (btnInformation) btnInformation.classList.remove("active");
+    return { btnCreate, btnEdit, btnDelete, btnApply, btnCancel, btnInformation };
+  }
+  function initButtonHandlers({
+    btnCreate,
+    btnEdit,
+    btnDelete,
+    preferenceModal,
+    rootEl,
+    name,
+    renderTable,
+    getDataFromStorage,
+    cleanups
+  }) {
+    const handleRowSelect = (e) => {
+      const index = e.detail.index;
+      [btnEdit, btnDelete].forEach((btn) => {
+        if (!btn) return;
+        btn.setAttribute("data-preferences-index", String(index));
+        if (name != null) {
+          btn.setAttribute("data-preferences-name", name);
+        }
+      });
+      if (btnEdit) btnEdit.classList.add("active");
+      if (btnDelete) btnDelete.classList.add("active");
+    };
+    addManagedEventListener2(cleanups, document, "preferences-row-select", handleRowSelect);
+    if (btnDelete) {
+      const handleDelete = () => {
+        if (!btnDelete.classList.contains("active")) {
+          return;
+        }
+        handleDeletePreference(btnDelete, rootEl);
+        const list = getDataFromStorage ? getDataFromStorage() : [];
+        if (list.length === 0) {
+          if (btnEdit) {
+            btnEdit.classList.remove("active");
+            btnEdit.removeAttribute("data-preferences-index");
+          }
+          btnDelete.classList.remove("active");
+          btnDelete.removeAttribute("data-preferences-index");
+        }
+      };
+      addManagedEventListener2(cleanups, btnDelete, "click", handleDelete);
+    }
+    if (btnEdit && preferenceModal) {
+      const handleEdit = () => {
+        if (!btnEdit.classList.contains("active")) {
+          return;
+        }
+        if (name != null) {
+          preferenceModal.setAttribute("data-preferences-name", name);
+        }
+        resetModalFormToDefaults(preferenceModal);
+        openModalForEdit(btnEdit, preferenceModal);
+      };
+      addManagedEventListener2(cleanups, btnEdit, "click", handleEdit);
+    }
+    if (btnCreate && preferenceModal) {
+      const handleCreate = () => {
+        if (!btnCreate.classList.contains("active")) {
+          return;
+        }
+        if (name != null) {
+          preferenceModal.setAttribute("data-preferences-name", name);
+        }
+        resetModalFormToDefaults(preferenceModal);
+        preferenceModal.removeAttribute("data-preferences-index");
+        setModalCreateMode(preferenceModal);
+        preferenceModal.classList.add("active");
+      };
+      addManagedEventListener2(cleanups, btnCreate, "click", handleCreate);
+    }
+  }
+  function renderPreferencesTemplate({ renderTable, getDataFromStorage, header, name } = {}) {
+    const headerButtons = initHeaderButtons(header);
+    const { btnCreate, btnEdit, btnDelete } = headerButtons;
+    const cleanups = [];
+    if (name && btnCreate) {
+      btnCreate.setAttribute("data-preferences-name", name);
+    }
+    const list = getDataFromStorage ? getDataFromStorage() : [];
+    if (list.length > 0) {
+      if (btnEdit) {
+        btnEdit.classList.add("active");
+        if (name) btnEdit.setAttribute("data-preferences-name", name);
+        btnEdit.setAttribute("data-preferences-index", "0");
+      }
+      if (btnDelete) {
+        btnDelete.classList.add("active");
+        if (name) btnDelete.setAttribute("data-preferences-name", name);
+        btnDelete.setAttribute("data-preferences-index", "0");
+      }
+    }
     const preference = createElement("div", {
       className: "gp__preference",
       children: [
-        // preference__info
         createElement("div", {
           className: "preference__info",
           children: [
-            // preference__settings
             createElement("div", {
               className: "preference__settings",
               children: [
@@ -2082,7 +3461,6 @@
                 })
               ]
             }),
-            // preference__description
             createElement("div", {
               className: "preference__description",
               children: [
@@ -2097,7 +3475,6 @@
             })
           ]
         }),
-        // preference__divider
         createElement("div", {
           className: "preference__divider",
           children: [
@@ -2106,11 +3483,10 @@
             })
           ]
         }),
-        // preference__data-table
         createElement("div", {
           className: "preference__data-table",
           children: [
-            renderPreferencesTableShortcuts()
+            renderTable ? renderTable() : null
           ]
         }),
         createElement("div", {
@@ -2204,22 +3580,22 @@
                           const modal = event.target.closest(".preference__modal");
                           if (!modal) return;
                           const mode = modal.getAttribute("data-preferences-mode");
-                          if (mode === "create" || mode === "edit") {
-                            savePreferencesFromModal(modal);
-                            const storageKey = modal.getAttribute("data-preferences-name");
-                            if (storageKey === "shortcuts") {
-                              const preferenceRoot = modal.closest(".gp__preference");
-                              const tableContainer = preferenceRoot?.querySelector(".preference__data-table");
-                              if (tableContainer) {
-                                const indexAttr = modal.getAttribute("data-preferences-index");
-                                const list = getShortcutsFromLocalStorage();
-                                const activeIndex = indexAttr !== null && indexAttr !== "" ? Math.min(parseInt(indexAttr, 10), list.length - 1) : list.length - 1;
-                                tableContainer.innerHTML = "";
-                                tableContainer.appendChild(renderPreferencesTableShortcuts([], activeIndex).getElement());
-                              }
-                            }
-                            modal.classList.remove("active");
+                          if (mode !== "create" && mode !== "edit") {
+                            return;
                           }
+                          savePreferencesFromModal(modal);
+                          if (renderTable && getDataFromStorage) {
+                            const preferenceRoot = modal.closest(".gp__preference");
+                            const tableContainer = preferenceRoot?.querySelector(".preference__data-table");
+                            if (tableContainer) {
+                              const indexAttr = modal.getAttribute("data-preferences-index");
+                              const currentList = getDataFromStorage();
+                              const activeIndex = indexAttr !== null && indexAttr !== "" ? Math.min(parseInt(indexAttr, 10), currentList.length - 1) : currentList.length - 1;
+                              tableContainer.innerHTML = "";
+                              tableContainer.appendChild(renderTable([], activeIndex).getElement());
+                            }
+                          }
+                          modal.classList.remove("active");
                         }
                       }
                     })
@@ -2237,312 +3613,553 @@
     const basicTabContent = rootEl.querySelector("#tab-basic");
     const generalTabContent = rootEl.querySelector("#tab-general");
     if (basicTabButton && generalTabButton && basicTabContent && generalTabContent) {
-      basicTabButton.addEventListener("click", () => {
-        if (!basicTabButton.classList.contains("active")) {
-          basicTabButton.classList.add("active");
-          basicTabContent.classList.add("active");
-          generalTabButton.classList.remove("active");
-          generalTabContent.classList.remove("active");
+      const activateBasicTab = () => {
+        if (basicTabButton.classList.contains("active")) {
+          return;
         }
-      });
-      generalTabButton.addEventListener("click", () => {
-        if (!generalTabButton.classList.contains("active")) {
-          generalTabButton.classList.add("active");
-          generalTabContent.classList.add("active");
-          basicTabButton.classList.remove("active");
-          basicTabContent.classList.remove("active");
+        basicTabButton.classList.add("active");
+        basicTabContent.classList.add("active");
+        generalTabButton.classList.remove("active");
+        generalTabContent.classList.remove("active");
+      };
+      const activateGeneralTab = () => {
+        if (generalTabButton.classList.contains("active")) {
+          return;
         }
-      });
+        generalTabButton.classList.add("active");
+        generalTabContent.classList.add("active");
+        basicTabButton.classList.remove("active");
+        basicTabContent.classList.remove("active");
+      };
+      addManagedEventListener2(cleanups, basicTabButton, "click", activateBasicTab);
+      addManagedEventListener2(cleanups, generalTabButton, "click", activateGeneralTab);
     }
     const dividerElement = rootEl.querySelector(".preference__divider");
     const infoElement = rootEl.querySelector(".preference__info");
-    const containerElement = rootEl;
-    requestAnimationFrame(() => {
-      if (dividerElement && infoElement && containerElement) {
-        resizable(dividerElement, infoElement, containerElement, { minWidth: 100 });
+    let cleanupPreferenceResizable = null;
+    const frameId = requestAnimationFrame(() => {
+      if (dividerElement && infoElement && rootEl) {
+        cleanupPreferenceResizable = resizable(dividerElement, infoElement, rootEl, { minWidth: 100 });
       }
     });
+    cleanups.push(() => {
+      cancelAnimationFrame(frameId);
+      if (typeof cleanupPreferenceResizable === "function") {
+        cleanupPreferenceResizable();
+        cleanupPreferenceResizable = null;
+      }
+    });
+    const preferenceModal = rootEl.querySelector(".preference__modal");
+    initButtonHandlers({
+      btnCreate,
+      btnEdit,
+      btnDelete,
+      preferenceModal,
+      rootEl,
+      name,
+      renderTable,
+      getDataFromStorage,
+      cleanups
+    });
+    let cleanedUp = false;
+    preference.cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      while (cleanups.length > 0) {
+        const cleanup = cleanups.pop();
+        if (typeof cleanup === "function") {
+          cleanup();
+        }
+      }
+      clearHeaderButtonState(headerButtons);
+    };
     return preference;
   }
 
-  // src/app/components/workspace/delete-preference.js
-  function handleDeletePreference(buttonEl, workspaceEl) {
-    if (!buttonEl) return;
-    const preferencesName = buttonEl.getAttribute("data-preferences-name");
-    const indexAttr = buttonEl.getAttribute("data-preferences-index");
-    if (!preferencesName || indexAttr === null || indexAttr === "") return;
-    const index = parseInt(indexAttr, 10);
-    if (Number.isNaN(index) || index < 0) return;
-    if (preferencesName === "shortcuts") {
-      const list = getShortcutsFromLocalStorage();
-      if (index >= list.length) return;
-      list.splice(index, 1);
-      saveShortcutsToLocalStorage(list);
-    } else {
-      return;
-    }
-    refreshPreferencesTable(workspaceEl);
-    if (preferencesName === "shortcuts" && getShortcutsFromLocalStorage().length === 0) {
-      buttonEl.classList.remove("active");
-      buttonEl.removeAttribute("data-preferences-index");
-    }
-  }
-  function refreshPreferencesTable(workspaceEl) {
-    const workspace = workspaceEl?.getElement ? workspaceEl.getElement() : workspaceEl;
-    const container2 = workspace ? workspace.querySelector(".preference__data-table") : document.querySelector(".workspace .preference__data-table");
-    if (!container2) return;
-    container2.innerHTML = "";
-    const table = renderPreferencesTableShortcuts();
-    container2.appendChild(table.getElement ? table.getElement() : table);
+  // src/app/components/templates/preference/templates-shortcuts.js
+  function renderShortcutsTemplate({ header } = {}) {
+    return renderPreferencesTemplate({
+      renderTable: renderPreferencesTableShortcuts,
+      getDataFromStorage: getShortcutsFromLocalStorage,
+      header,
+      name: "shortcuts"
+    });
   }
 
-  // src/app/components/workspace/edit-preference.js
-  function setFieldValue(fieldEl, value) {
-    const element = getValueElement(fieldEl);
-    if (!element) return;
-    const tagName = element.tagName.toLowerCase();
-    const type = (element.type || "").toLowerCase();
-    if (tagName === "select") {
-      element.value = String(value);
-      return;
-    }
-    if (tagName === "input" && (type === "checkbox" || type === "radio")) {
-      element.checked = Boolean(value);
-      return;
-    }
-    if (tagName === "input" || tagName === "textarea") {
-      element.value = value === void 0 || value === null ? "" : String(value);
-    }
-  }
-  function getStoredPreferenceData(modalEl) {
-    if (!modalEl) return null;
-    const storageKey = modalEl.getAttribute("data-preferences-name");
-    if (!storageKey) return null;
-    if (storageKey === "shortcuts") {
-      const list = getShortcutsFromLocalStorage();
-      const indexAttr = modalEl.getAttribute("data-preferences-index");
-      const index = indexAttr !== null && indexAttr !== "" ? parseInt(indexAttr, 10) : -1;
-      if (index >= 0 && index < list.length) return list[index];
-      return null;
-    }
-    try {
-      const raw = localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : null;
-    } catch (_) {
-      return null;
-    }
-  }
-  function syncModalFromStoredData(modalEl) {
-    if (!modalEl) return;
-    const stored = getStoredPreferenceData(modalEl);
-    if (!stored || typeof stored !== "object") return;
-    const basicData = stored.basic ?? stored;
-    const commonData = stored.common ?? stored;
-    const tabBasic = modalEl.querySelector("#tab-basic");
-    if (tabBasic) {
-      tabBasic.querySelectorAll("[data-name]").forEach((fieldEl) => {
-        const name = fieldEl.getAttribute("data-name");
-        if (!name || !(name in basicData)) return;
-        const valueEl = getValueElement(fieldEl);
-        if (!valueEl) return;
-        const current = getFieldValue(fieldEl);
-        const needed = basicData[name];
-        const currentNorm = typeof current === "boolean" ? current : current === void 0 || current === null ? "" : String(current);
-        const neededNorm = typeof needed === "boolean" ? needed : needed === void 0 || needed === null ? "" : String(needed);
-        if (currentNorm !== neededNorm) {
-          setFieldValue(fieldEl, needed);
-        }
-      });
-    }
-    const tabGeneral = modalEl.querySelector("#tab-general");
-    if (tabGeneral) {
-      tabGeneral.querySelectorAll("[data-name]").forEach((fieldEl) => {
-        const name = fieldEl.getAttribute("data-name");
-        if (!name || !(name in commonData)) return;
-        const valueEl = getValueElement(fieldEl);
-        if (!valueEl) return;
-        const current = getFieldValue(fieldEl);
-        const needed = commonData[name];
-        const currentNorm = typeof current === "boolean" ? current : current === void 0 || current === null ? "" : String(current);
-        const neededNorm = typeof needed === "boolean" ? needed : needed === void 0 || needed === null ? "" : String(needed);
-        if (currentNorm !== neededNorm) {
-          setFieldValue(fieldEl, needed);
-        }
-      });
-    }
-  }
-  function openModalForEdit(btnEdit, modalEl) {
-    if (!btnEdit || !modalEl) return;
-    const name = btnEdit.getAttribute("data-preferences-name");
-    const index = btnEdit.getAttribute("data-preferences-index");
-    if (name != null) modalEl.setAttribute("data-preferences-name", name);
-    if (index != null) modalEl.setAttribute("data-preferences-index", index);
-    else modalEl.removeAttribute("data-preferences-index");
-    modalEl.setAttribute("data-preferences-mode", "edit");
-    resetActiveTabToBasic(modalEl);
-    syncModalFromStoredData(modalEl);
-    modalEl.classList.add("active");
-  }
-
-  // src/app/components/tree-view/default-template.js
-  function renderDefaultTemplate() {
-    const defaultTemplate = createElement("div", {
+  // src/app/components/templates/preference/templates-environment.js
+  function renderEnvironmentTemplate() {
+    const environmentTemplate = createElement("div", {
       className: "gp__default-template",
       children: [
         createElement("div", {
           className: "default-template__message",
-          text: "\u0428\u0430\u0431\u043B\u043E\u043D \u043D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D"
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D environment \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
         })
       ]
     });
-    return defaultTemplate;
+    return environmentTemplate;
+  }
+
+  // src/app/components/templates/preference/templates-folders.js
+  function renderFoldersTemplate() {
+    const foldersTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D folders \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
+        })
+      ]
+    });
+    return foldersTemplate;
+  }
+
+  // src/app/components/templates/preference/templates-registry.js
+  function renderRegistryTemplate() {
+    const registryTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D registry \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
+        })
+      ]
+    });
+    return registryTemplate;
+  }
+
+  // src/app/components/templates/preference/templates-driveMaps.js
+  function renderDriveMapsTemplate() {
+    const driveMapsTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D driveMaps \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
+        })
+      ]
+    });
+    return driveMapsTemplate;
+  }
+
+  // src/app/components/templates/preference/templates-networkShares.js
+  function renderNetworkSharesTemplate() {
+    const networkSharesTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D networkShares \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
+        })
+      ]
+    });
+    return networkSharesTemplate;
+  }
+
+  // src/app/components/templates/preference/templates-files.js
+  function renderFilesTemplate() {
+    const filesTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D files \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
+        })
+      ]
+    });
+    return filesTemplate;
+  }
+
+  // src/app/components/templates/preference/templates-iniFiles.js
+  function renderIniFilesTemplate() {
+    const iniFilesTemplate = createElement("div", {
+      className: "gp__default-template",
+      children: [
+        createElement("div", {
+          className: "default-template__message",
+          text: "\u0428\u0430\u0431\u043B\u043E\u043D iniFiles \u0432 \u043F\u0440\u043E\u0446\u0435\u0441\u0441\u0435 \u0440\u0435\u0430\u043B\u0438\u0437\u0430\u0446\u0438\u0438"
+        })
+      ]
+    });
+    return iniFilesTemplate;
   }
 
   // src/app/app.js
+  var mainPolicy = null;
+  var policyLoaded = false;
+  var policyLoadCallbacks = [];
+  
+  // Функция-обёртка для require_policy_ru
+  function require_policy_ru() {
+    return mainPolicy;
+  }
+  
+  // Функция для ожидания загрузки политики
+  function waitForPolicy(callback, timeout) {
+    if (policyLoaded && mainPolicy) {
+      callback(mainPolicy);
+      return Promise.resolve(mainPolicy);
+    }
+    
+    return new Promise(function(resolve, reject) {
+      var timer = null;
+      
+      var callbackWrapper = function(policy) {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        callback(policy);
+        resolve(policy);
+      };
+      
+      policyLoadCallbacks.push(callbackWrapper);
+      
+      // Таймаут ожидания
+      timer = setTimeout(function() {
+        var index = policyLoadCallbacks.indexOf(callbackWrapper);
+        if (index > -1) {
+          policyLoadCallbacks.splice(index, 1);
+        }
+        reject(new Error("Policy load timeout after " + (timeout || 30000) + "ms"));
+      }, timeout || 30000);
+    });
+  }
+  
+  function getPolicy(path, onSuccess, onError) {
+    var policyPath = path || "/";
+    if (typeof rpc === "undefined" || !rpc || typeof rpc.command !== "function") {
+      var rpcError = new Error("Global rpc is not available.");
+      console.error("[policy] Failed to execute getPolicy.", rpcError);
+      if (typeof onError === "function") {
+        onError(null, "rpc_unavailable", rpcError);
+      }
+      return;
+    }
+    if (typeof IPA === "undefined" || !IPA) {
+      var ipaError = new Error("Global IPA is not available.");
+      console.error("[policy] Failed to execute getPolicy.", ipaError);
+      if (typeof onError === "function") {
+        onError(null, "ipa_unavailable", ipaError);
+      }
+      return;
+    }
+    var command = rpc.command({
+      entity: "gpo",
+      method: "get_policy",
+      args: [policyPath],
+      options: {
+        version: IPA.api_version
+      },
+      on_success: function(data) {
+        var result = data && data.result ? data.result.result || {} : {};
+        if (typeof onSuccess === "function") {
+          onSuccess(result);
+        }
+      },
+      on_error: function(xhr, text_status, error_thrown) {
+        console.error("[policy] Failed to load policy.", error_thrown || text_status || xhr);
+        if (typeof onError === "function") {
+          onError(xhr, text_status, error_thrown);
+        }
+      }
+    });
+    command.execute();
+  }
+  function loadMainPolicy(path) {
+    // Stage 1: load policy and store it separately without changing static UI data.
+    getPolicy(path || "/", function(policy) {
+      console.log('[loadMainPolicy] Policy loaded:', policy ? 'OK' : 'null');
+      mainPolicy = policy;
+      policyLoaded = true;
+      
+      // Вызываем все коллбеки ожидания
+      console.log('[loadMainPolicy] Calling', policyLoadCallbacks.length, 'callbacks');
+      policyLoadCallbacks.forEach(function(cb) {
+        try {
+          cb(mainPolicy);
+        } catch (e) {
+          console.error("Error in policy load callback:", e);
+        }
+      });
+      policyLoadCallbacks = [];
+      console.log('[loadMainPolicy] All callbacks executed');
+    }, function(xhr, text_status, error_thrown) {
+      console.error("[mainPolicy] Failed to initialize policy loading.", error_thrown || text_status || xhr);
+    });
+  }
+  
   var treeViewState = {
     selectedItem: null,
+    selectedPath: [],
     workspace: null,
     header: null,
-    btnCreateHandler: null,
+    isHelpOpen: false,
+    currentViewCleanup: null,
+    treeData: [],
+    treeItemElements: /* @__PURE__ */ new WeakMap(),
+    treeListItemElements: /* @__PURE__ */ new WeakMap(),
+    parentItems: /* @__PURE__ */ new WeakMap(),
     setWorkspace(workspace) {
       this.workspace = workspace;
+    },
+    setTreeData(treeData) {
+      this.treeData = Array.isArray(treeData) ? treeData : [];
     },
     setHeader(header) {
       this.header = header;
     },
-    setSelectedItem(item, element) {
-      if (this.btnCreateHandler && this.header) {
-        const btnCreate = this.header.getElement().querySelector(".preferences__btn-create");
-        if (btnCreate) {
-          btnCreate.removeEventListener("click", this.btnCreateHandler);
-        }
-        this.btnCreateHandler = null;
+    initHelpControls() {
+      const btnInformation = this.header?.getElement?.()?.querySelector(".gp__control-help .btn-information");
+      if (!btnInformation) {
+        return;
       }
+      btnInformation.addEventListener("click", () => {
+        this.toggleHelp();
+      });
+      this.syncHelpButtonState();
+    },
+    registerTreeNode(item, { treeItemElement = null, listItemElement = null, parentItem = null } = {}) {
+      if (!item) {
+        return;
+      }
+      if (treeItemElement instanceof Element) {
+        this.treeItemElements.set(item, treeItemElement);
+      }
+      if (listItemElement instanceof Element) {
+        this.treeListItemElements.set(item, listItemElement);
+      }
+      if (parentItem) {
+        this.parentItems.set(item, parentItem);
+        return;
+      }
+      this.parentItems.delete(item);
+    },
+    getPathToItem(item) {
+      if (!item) {
+        return [];
+      }
+      const path = [];
+      let currentItem = item;
+      while (currentItem) {
+        path.unshift(currentItem);
+        currentItem = this.parentItems.get(currentItem) ?? null;
+      }
+      return path;
+    },
+    setFolderOpened(item, opened) {
+      if (item?.type !== "folder") {
+        return Boolean(item?.opened);
+      }
+      const listItemElement = this.treeListItemElements.get(item) ?? null;
+      return setFolderOpenedState(listItemElement, item, opened);
+    },
+    toggleFolder(item) {
+      if (item?.type !== "folder" || !Array.isArray(item.children) || item.children.length === 0) {
+        return Boolean(item?.opened);
+      }
+      return this.setFolderOpened(item, !item.opened);
+    },
+    openPathToItem(item) {
+      const path = this.getPathToItem(item);
+      path.slice(0, -1).forEach((pathItem) => {
+        if (pathItem?.type === "folder") {
+          this.setFolderOpened(pathItem, true);
+        }
+      });
+      return path;
+    },
+    activateTreeItem(item, treeItemElement = null) {
+      const nextTreeItemElement = treeItemElement ?? this.treeItemElements.get(item) ?? null;
+      if (!nextTreeItemElement) {
+        return null;
+      }
+      const treeContainer = nextTreeItemElement.closest(".tree-view") ?? document;
+      return setTreeItemActive(nextTreeItemElement, treeContainer);
+    },
+    cleanupCurrentView() {
+      if (typeof this.currentViewCleanup === "function") {
+        this.currentViewCleanup();
+      }
+      this.currentViewCleanup = null;
+    },
+    setCurrentView(view) {
+      this.currentViewCleanup = typeof view?.cleanup === "function" ? view.cleanup : null;
+    },
+    isFolderItemSelected() {
+      return this.selectedItem?.item?.type === "folder";
+    },
+    isAdmxItemSelected() {
+      return this.selectedItem?.item?.type === "file" && this.selectedItem?.item?.template === "admx";
+    },
+    isHelpToggleAvailable() {
+      return this.isFolderItemSelected() || this.isAdmxItemSelected();
+    },
+    getCurrentHelpSourceItem() {
+      if (this.isFolderItemSelected()) {
+        return this.selectedItem?.item ?? null;
+      }
+      return [...this.selectedPath].reverse().find((pathItem) => pathItem?.type === "folder") ?? null;
+    },
+    buildViewWithPersistentHelp(view) {
+      if (!this.isHelpOpen) {
+        return view;
+      }
+      const helpSourceItem = this.getCurrentHelpSourceItem();
+      const helpBlock = renderHelpBlock({
+        help: helpSourceItem?.help,
+        isOpen: this.isHelpOpen
+      });
+      if (!helpBlock) {
+        return view;
+      }
+      return createElement("div", {
+        className: "gp__list-children-wrapper",
+        children: [view, helpBlock]
+      });
+    },
+    syncHelpButtonState() {
+      const btnInformation = this.header?.getElement?.()?.querySelector(".gp__control-help .btn-information");
+      if (!btnInformation) {
+        return;
+      }
+      btnInformation.classList.toggle("active", this.isHelpToggleAvailable());
+    },
+    syncHelpBlockState() {
+      const workspaceEl = this.workspace?.getElement?.();
+      const helpBlocks = workspaceEl?.querySelectorAll(".gp__list-children-help, .gp__admx-help");
+      if (!helpBlocks || helpBlocks.length === 0) {
+        return;
+      }
+      helpBlocks.forEach((helpBlock) => {
+        helpBlock.classList.toggle("is-open", this.isHelpOpen);
+      });
+    },
+    setHelpOpen(opened) {
+      this.isHelpOpen = Boolean(opened);
+      this.syncHelpBlockState();
+      return this.isHelpOpen;
+    },
+    toggleHelp() {
+      if (!this.isHelpToggleAvailable()) {
+        return this.isHelpOpen;
+      }
+      return this.setHelpOpen(!this.isHelpOpen);
+    },
+    renderSelectedItem(item, element = null) {
+      this.cleanupCurrentView();
+      if (this.workspace) {
+        this.workspace.clear();
+      }
+      this.setCurrentView(null);
+      this.selectedPath = this.getPathToItem(item);
       this.selectedItem = { item, element };
-      const template = item.template;
-      if (template === "preferences") {
-        const namePreference = item.name;
-        if (namePreference) {
-          if (this.workspace) {
-            this.workspace.clear();
-            const preferencesTemplate = renderPreferencesTemplate();
-            this.workspace.append(preferencesTemplate);
-          }
-          if (this.header) {
-            this.header.addClass("active");
-            const headerEl = this.header.getElement();
-            const btnCreate = headerEl.querySelector(".preferences__btn-create");
-            const btnEdit = headerEl.querySelector(".preferences__btn-edit");
-            const btnDelete = headerEl.querySelector(".preferences__btn-delete");
-            [btnCreate, btnEdit, btnDelete].forEach((btn) => {
-              if (btn) {
-                btn.setAttribute("data-preferences-name", namePreference);
-                if (btn !== btnCreate) btn.classList.remove("active");
-              }
+      let templateResult = null;
+      let renderedWorkspaceView = null;
+      console.log("item)", item);
+      if (item?.type === "folder") {
+        templateResult = renderFolderTemplate({
+          children: item.children ?? [],
+          help: item.help,
+          isHelpOpen: this.isHelpOpen,
+          onItemClick: (childItem) => {
+            this.navigateToNode(childItem, {
+              openPath: true,
+              openCurrentFolder: childItem?.type === "folder" ? true : void 0
             });
-            if (btnCreate) {
-              btnCreate.classList.add("active");
-              this.btnCreateHandler = (e) => {
-                if (btnCreate.classList.contains("active") && this.workspace) {
-                  const preferenceModal = this.workspace.getElement().querySelector(".preference__modal");
-                  if (preferenceModal) {
-                    const name = btnCreate.getAttribute("data-preferences-name");
-                    if (name != null) preferenceModal.setAttribute("data-preferences-name", name);
-                    resetModalFormToDefaults(preferenceModal);
-                    preferenceModal.removeAttribute("data-preferences-index");
-                    setModalCreateMode(preferenceModal);
-                    preferenceModal.classList.add("active");
-                  }
-                }
-              };
-              btnCreate.addEventListener("click", this.btnCreateHandler);
-            }
-            if (btnEdit) {
-              btnEdit.classList.add("active");
-            }
-            if (btnDelete) {
-              btnDelete.classList.add("active");
-            }
+          }
+        });
+        renderedWorkspaceView = templateResult;
+      } else if (item?.type === "file") {
+        if (item.template === "scripts") {
+          const headerClass = item.header?.class;
+          if (headerClass === "Machine") {
+            templateResult = renderScriptsTemplate();
+          } else {
+            templateResult = renderDefaultTemplate();
+          }
+        } else if (item.template === "admx") {
+          templateResult = renderAdmxTemplate({
+            isHelpOpen: this.isHelpOpen,
+            header: this.header,
+            item,
+            admxTreePath: item?.admxTreePath
+          });
+        } else if (item.template !== "preferences") {
+          templateResult = renderDefaultTemplate();
+        } else {
+          const headerClass = item.header?.class;
+          if (headerClass !== "Machine") {
+            templateResult = renderDefaultTemplate();
+          } else {
+            const preferenceTemplateMap = {
+              shortcuts: renderShortcutsTemplate,
+              environment: renderEnvironmentTemplate,
+              folders: renderFoldersTemplate,
+              registry: renderRegistryTemplate,
+              driveMaps: renderDriveMapsTemplate,
+              networkShares: renderNetworkSharesTemplate,
+              files: renderFilesTemplate,
+              iniFiles: renderIniFilesTemplate
+            };
+            const renderTemplate = preferenceTemplateMap[item.name] || renderDefaultTemplate;
+            templateResult = renderTemplate({ header: this.header });
           }
         }
-      } else {
-        if (this.workspace) {
-          this.workspace.clear();
-          const defaultTemplate = renderDefaultTemplate();
-          this.workspace.append(defaultTemplate);
-        }
-        if (this.header) {
-          this.header.removeClass("active");
-          const headerEl = this.header.getElement();
-          [".preferences__btn-create", ".preferences__btn-edit", ".preferences__btn-delete"].forEach((sel) => {
-            const btn = headerEl.querySelector(sel);
-            if (btn) {
-              btn.classList.remove("active");
-              btn.removeAttribute("data-preferences-name");
-              btn.removeAttribute("data-preferences-index");
-            }
-          });
-        }
+        renderedWorkspaceView = templateResult;
       }
+      if (this.workspace && renderedWorkspaceView) {
+        this.workspace.append(renderedWorkspaceView);
+        this.setCurrentView(templateResult);
+      }
+      this.syncHelpButtonState();
+      this.syncHelpBlockState();
+    },
+    navigateToNode(item, { treeItemElement = null, openPath = true, openCurrentFolder = void 0 } = {}) {
+      if (!item) {
+        return;
+      }
+      if (openPath) {
+        this.openPathToItem(item);
+      }
+      if (item.type === "folder" && openCurrentFolder !== void 0) {
+        this.setFolderOpened(item, openCurrentFolder);
+      }
+      const activeTreeItemElement = this.activateTreeItem(item, treeItemElement);
+      this.renderSelectedItem(item, activeTreeItemElement);
+    },
+    initializeSelection() {
+      if (this.selectedItem?.item) {
+        return;
+      }
+      const firstRootItem = this.treeData[0] ?? null;
+      if (!firstRootItem) {
+        return;
+      }
+      this.navigateToNode(firstRootItem, {
+        openPath: true,
+        openCurrentFolder: firstRootItem.type === "folder" ? true : void 0
+      });
     }
   };
-  var container = document.getElementById("gp__container");
-  if (container) {
-    const header = renderHeader(container);
-    treeViewState.setHeader(header);
-    const { main, treeView, divider, workspace } = renderMain(container, treeViewState);
-    renderFooter(container);
-    const dividerElement = divider.getElement();
-    const treeViewElement = treeView.getElement();
-    const mainElement = main.getElement();
-    resizable(dividerElement, treeViewElement, mainElement);
-    document.addEventListener("preferences-row-select", (e) => {
-      const headerEl = header.getElement();
-      const btnCreate = headerEl.querySelector(".preferences__btn-create");
-      const btnDelete2 = headerEl.querySelector(".preferences__btn-delete");
-      const btnEdit2 = headerEl.querySelector(".preferences__btn-edit");
-      const index = e.detail.index;
-      const name = btnCreate?.getAttribute("data-preferences-name");
-      [btnCreate, btnEdit2, btnDelete2].forEach((btn) => {
-        if (btn) {
-          btn.setAttribute("data-preferences-index", String(index));
-          if (name != null) btn.setAttribute("data-preferences-name", name);
-        }
-      });
-      if (btnDelete2) btnDelete2.classList.add("active");
-      if (btnEdit2) btnEdit2.classList.add("active");
-    });
-    const btnDelete = header.getElement().querySelector(".preferences__btn-delete");
-    if (btnDelete) {
-      btnDelete.addEventListener("click", () => {
-        if (btnDelete.classList.contains("active")) {
-          handleDeletePreference(btnDelete, workspace);
-        }
-      });
+    options = options || {};
+    initShortcutsStorage();
+    initAdmxStorage();
+    loadMainPolicy(options.path || "/");
+    var container = document.getElementById(options.containerId || "gp__container");
+    if (container) {
+      const header = renderHeader(container);
+      treeViewState.setHeader(header);
+      treeViewState.initHelpControls();
+      const { main, treeView, divider } = renderMain(container, treeViewState);
+      renderFooter(container);
+      const dividerElement = divider.getElement();
+      const treeViewElement = treeView.getElement();
+      const mainElement = main.getElement();
+      resizable(dividerElement, treeViewElement, mainElement);
     }
-    const btnEdit = header.getElement().querySelector(".preferences__btn-edit");
-    if (btnEdit) {
-      btnEdit.addEventListener("click", () => {
-        if (btnEdit.classList.contains("active") && workspace) {
-          const preferenceModal = workspace.getElement().querySelector(".preference__modal");
-          if (preferenceModal) {
-            const name = btnEdit.getAttribute("data-preferences-name");
-            const tabBasicElement = document.getElementById("tab-basic");
-            if (tabBasicElement) {
-              tabBasicElement.innerHTML = "";
-              if (name === "shortcuts") {
-                const shortcutsTemplate = renderPreferencesShortcutsTemplate();
-                console.log(shortcutsTemplate);
-                if (shortcutsTemplate && typeof shortcutsTemplate.getElement === "function") {
-                  tabBasicElement.appendChild(shortcutsTemplate.getElement());
-                }
-              }
-            }
-            openModalForEdit(btnEdit, preferenceModal);
-          }
-        }
-      });
-    }
-    console.log(t("policies.localGroupPolicy"));
   }
-})();
+  return {
+    init: init
+  };
+});

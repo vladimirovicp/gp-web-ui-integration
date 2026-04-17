@@ -1,10 +1,11 @@
 define([
+    'require',
     'freeipa/ipa',
     'freeipa/phases',
     'freeipa/reg',
     'freeipa/navigation',
     'freeipa/rpc'
-], function(IPA, phases, reg, navigation, rpc) {
+], function(require, IPA, phases, reg, navigation, rpc) {
 
     var exp = IPA.gpo = {};
 
@@ -533,9 +534,23 @@ define([
 
             $('body').append(backdrop).append(modal);
 
-            var script = document.createElement('script');
-            script.src = 'js/plugins/chain/js/app.js';
-            document.body.appendChild(script);
+            require(['./js/app'], function(app) {
+                if (app && typeof app.init === 'function') {
+                    app.init({
+                        containerId: 'gp__container',
+                        policyName: policyName,
+                        path: '/'
+                    });
+                    return;
+                }
+
+                IPA.notify('Failed to initialize GPUI module', 'error');
+            }, function(err) {
+                IPA.notify('Failed to load GPUI module', 'error');
+                if (window.console && console.error) {
+                    console.error('[gpui] Failed to load app module.', err);
+                }
+            });
         };
 
         return that;
