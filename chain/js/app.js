@@ -3556,6 +3556,27 @@ define(["freeipa/ipa", "freeipa/rpc", "./API", "./locales/en", "./locales/ru"], 
     }
   };
     options = options || {};
+
+
+    if (options.policyName) {
+      rpc.command({
+        entity: "gpo",
+        method: "show",
+        args: [options.policyName],
+        options: {
+          version: IPA.api_version
+        },
+        on_success: function(data) {
+          var gpoData = data && data.result ? data.result.result : {};
+          console.log("File System Path:", gpoData.gpcfilesyspath);
+        },
+        on_error: function(xhr, text_status, error_thrown) {
+          console.error("Failed to get File System Path:", error_thrown || text_status);
+        }
+      }).execute();
+    }
+
+    
     initShortcutsStorage();
     initAdmxStorage();
     mainPolicyPromise = initializeMainPolicy(options.path || "/");
