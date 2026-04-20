@@ -3652,7 +3652,93 @@ define(["freeipa/ipa", "freeipa/rpc", "./locales/en", "./locales/ru"], function(
       resizable(dividerElement, treeViewElement, mainElement);
     }
   }
+
+
+  //--------------------------------  get_policy получаю дерево
+
+  require(['freeipa/rpc', 'freeipa/ipa'], function(rpc, IPA) {
+    rpc.command({
+      entity: 'gpo',
+      method: 'get_policy',
+      args: ['/'],
+      options: { version: IPA.api_version },
+      on_success: function(data) {
+        console.log('!!! get_policy получаю дерево',data.result.result);
+      },
+      on_error: function(xhr, text_status, error_thrown) {
+        console.error(text_status, error_thrown || xhr);
+      }
+    }).execute();
+  });
+
+
+  // -------------------------------- get_current_value
+  require(['freeipa/rpc', 'freeipa/ipa'], function(rpc, IPA) {
+  var name_gpt = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
+  var target = 'Machine';
+  // Use escaped backslashes in the literal so the final runtime value contains single separators.
+  var path = 'Software\\BaseALT\\Policies\\Laps\\AdministratorAccountName';
+
+  var command = rpc.command({
+    entity: 'gpo',
+    method: 'get_current_value',
+    args: [name_gpt, target, path],
+    options: {
+      version: IPA.api_version
+    },
+    on_success: function(data) {
+      var result = data && data.result ? data.result.result : null;
+      console.log('[gpo_get_current_value] raw:', data);
+      console.log('[gpo_get_current_value] result:', result);
+    },
+    on_error: function(xhr, text_status, error_thrown) {
+      console.error('[gpo_get_current_value] error:', text_status, error_thrown || xhr);
+    }
+  });
+
+  command.execute();
+});
+
+ // -------------------------------- gpo-get-policy
+require(['freeipa/rpc', 'freeipa/ipa'], function(rpc, IPA) {
+  var name_gpt = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
+  var target = 'Machine';
+  var path = 'Software\\BaseALT\\Policies\\Laps\\AdministratorAccountName';
+  var jsonData = 'test2026-04- 2';
+  var metadata = 'Machine/categories/ALT System/inherited/LAPS/policies/ALT_LAPS:Administrator Account Name';
+
+  var command = rpc.command({
+    entity: 'gpo',
+    method: 'set_policy',
+    args: [name_gpt, target, path, jsonData, metadata],
+    options: {
+      version: IPA.api_version,
+      // json: jsonData
+    },
+    on_success: function(data) {
+      console.log('data++--++-',data)
+      var result = data && data.result ? data.result.result : null;
+      console.log('[gpo-set-policy] sent json:', jsonData);
+      console.log('[gpo-set-policy] raw:', data);
+      console.log('[gpo-set-policy] result:', data.result.success);
+    },
+    on_error: function(xhr, text_status, error_thrown) {
+      console.error('[gpo-set-policy] error:', text_status, error_thrown || xhr);
+    }
+  });
+
+  command.execute();
+});
+
   return {
     init: init
   };
+
+
+
+
+
+
+
+
 });
