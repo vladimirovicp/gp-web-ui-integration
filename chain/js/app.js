@@ -1,4 +1,4 @@
-define(["freeipa/ipa", "freeipa/rpc", "./locales/en", "./locales/ru"], function(IPA, rpc, en_default, ru_default) {
+define(["freeipa/ipa", "freeipa/rpc", "./API", "./locales/en", "./locales/ru"], function(IPA, rpc, API, en_default, ru_default) {
   function init(options) {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
@@ -693,12 +693,8 @@ define(["freeipa/ipa", "freeipa/rpc", "./locales/en", "./locales/ru"], function(
   }
   async function loadTreeViewList() {
     console.log('[loadTreeViewList] Starting, mainPolicy:', mainPolicy ? 'exists' : 'null');
-
-    // Ждём пока mainPolicy будет не null
-    await waitForPolicy(function(policyData) {
-      console.log('[loadTreeViewList] waitForPolicy resolved, setting mainPolicy');
-      // mainPolicy уже установлен в loadMainPolicy, ничего делать не нужно
-    });
+    await waitForPolicy();
+    console.log('[loadTreeViewList] waitForPolicy resolved, mainPolicy ready');
 
     console.log('[loadTreeViewList] After await, mainPolicy:', mainPolicy ? 'exists' : 'null');
     
@@ -3279,107 +3275,31 @@ define(["freeipa/ipa", "freeipa/rpc", "./locales/en", "./locales/ru"], function(
 
   // src/app/app.js
   var mainPolicy = null;
-  var policyLoaded = false;
-  var policyLoadCallbacks = [];
+  var mainPolicyPromise = null;
   
-  // Функция-обёртка для require_policy_ru
   function require_policy_ru() {
     return mainPolicy;
   }
-  
-  // Функция для ожидания загрузки политики
-  function waitForPolicy(callback, timeout) {
-    if (policyLoaded && mainPolicy) {
-      callback(mainPolicy);
-      return Promise.resolve(mainPolicy);
+
+  async function waitForPolicy() {
+    if (mainPolicy) {
+      return mainPolicy;
     }
-    
-    return new Promise(function(resolve, reject) {
-      var timer = null;
-      
-      var callbackWrapper = function(policy) {
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
-        callback(policy);
-        resolve(policy);
-      };
-      
-      policyLoadCallbacks.push(callbackWrapper);
-      
-      // Таймаут ожидания
-      timer = setTimeout(function() {
-        var index = policyLoadCallbacks.indexOf(callbackWrapper);
-        if (index > -1) {
-          policyLoadCallbacks.splice(index, 1);
-        }
-        reject(new Error("Policy load timeout after " + (timeout || 30000) + "ms"));
-      }, timeout || 30000);
-    });
+    if (!mainPolicyPromise) {
+      throw new Error("Main policy loading has not been started.");
+    }
+    return mainPolicyPromise;
   }
-  
-  function getPolicy(path, onSuccess, onError) {
-    var policyPath = path || "/";
-    if (typeof rpc === "undefined" || !rpc || typeof rpc.command !== "function") {
-      var rpcError = new Error("Global rpc is not available.");
-      console.error("[policy] Failed to execute getPolicy.", rpcError);
-      if (typeof onError === "function") {
-        onError(null, "rpc_unavailable", rpcError);
-      }
-      return;
+
+  async function initializeMainPolicy(path) {
+    try {
+      mainPolicy = await API.loadMainPolicy(path || "/");
+      console.log("[loadMainPolicy] Policy loaded:", mainPolicy ? "OK" : "null");
+      return mainPolicy;
+    } catch (error) {
+      console.error("[mainPolicy] Failed to initialize policy loading.", error);
+      throw error;
     }
-    if (typeof IPA === "undefined" || !IPA) {
-      var ipaError = new Error("Global IPA is not available.");
-      console.error("[policy] Failed to execute getPolicy.", ipaError);
-      if (typeof onError === "function") {
-        onError(null, "ipa_unavailable", ipaError);
-      }
-      return;
-    }
-    var command = rpc.command({
-      entity: "gpo",
-      method: "get_policy",
-      args: [policyPath],
-      options: {
-        version: IPA.api_version
-      },
-      on_success: function(data) {
-        var result = data && data.result ? data.result.result || {} : {};
-        if (typeof onSuccess === "function") {
-          onSuccess(result);
-        }
-      },
-      on_error: function(xhr, text_status, error_thrown) {
-        console.error("[policy] Failed to load policy.", error_thrown || text_status || xhr);
-        if (typeof onError === "function") {
-          onError(xhr, text_status, error_thrown);
-        }
-      }
-    });
-    command.execute();
-  }
-  function loadMainPolicy(path) {
-    // Stage 1: load policy and store it separately without changing static UI data.
-    getPolicy(path || "/", function(policy) {
-      console.log('[loadMainPolicy] Policy loaded:', policy ? 'OK' : 'null');
-      mainPolicy = policy;
-      policyLoaded = true;
-      
-      // Вызываем все коллбеки ожидания
-      console.log('[loadMainPolicy] Calling', policyLoadCallbacks.length, 'callbacks');
-      policyLoadCallbacks.forEach(function(cb) {
-        try {
-          cb(mainPolicy);
-        } catch (e) {
-          console.error("Error in policy load callback:", e);
-        }
-      });
-      policyLoadCallbacks = [];
-      console.log('[loadMainPolicy] All callbacks executed');
-    }, function(xhr, text_status, error_thrown) {
-      console.error("[mainPolicy] Failed to initialize policy loading.", error_thrown || text_status || xhr);
-    });
   }
   
   var treeViewState = {
@@ -3638,7 +3558,7 @@ define(["freeipa/ipa", "freeipa/rpc", "./locales/en", "./locales/ru"], function(
     options = options || {};
     initShortcutsStorage();
     initAdmxStorage();
-    loadMainPolicy(options.path || "/");
+    mainPolicyPromise = initializeMainPolicy(options.path || "/");
     var container = document.getElementById(options.containerId || "gp__container");
     if (container) {
       const header = renderHeader(container);
@@ -3653,82 +3573,24 @@ define(["freeipa/ipa", "freeipa/rpc", "./locales/en", "./locales/ru"], function(
     }
   }
 
+  /*
+  // Пример использования API.getCurrentValue() в app.js
+  async function debugGetCurrentValueExample() {
+    try {
+      var nameGpt = "\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}";
+      var target = "Machine";
+      var path = "Software\\BaseALT\\Policies\\Laps\\AdministratorAccountName";
 
-  //--------------------------------  get_policy получаю дерево
-
-  require(['freeipa/rpc', 'freeipa/ipa'], function(rpc, IPA) {
-    rpc.command({
-      entity: 'gpo',
-      method: 'get_policy',
-      args: ['/'],
-      options: { version: IPA.api_version },
-      on_success: function(data) {
-        console.log('!!! get_policy получаю дерево',data.result.result);
-      },
-      on_error: function(xhr, text_status, error_thrown) {
-        console.error(text_status, error_thrown || xhr);
-      }
-    }).execute();
-  });
-
-
-  // -------------------------------- get_current_value
-  require(['freeipa/rpc', 'freeipa/ipa'], function(rpc, IPA) {
-  var name_gpt = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
-  var target = 'Machine';
-  // Use escaped backslashes in the literal so the final runtime value contains single separators.
-  var path = 'Software\\BaseALT\\Policies\\Laps\\AdministratorAccountName';
-
-  var command = rpc.command({
-    entity: 'gpo',
-    method: 'get_current_value',
-    args: [name_gpt, target, path],
-    options: {
-      version: IPA.api_version
-    },
-    on_success: function(data) {
-      var result = data && data.result ? data.result.result : null;
-      console.log('[gpo_get_current_value] raw:', data);
-      console.log('[gpo_get_current_value] result:', result);
-    },
-    on_error: function(xhr, text_status, error_thrown) {
-      console.error('[gpo_get_current_value] error:', text_status, error_thrown || xhr);
+      var currentValue = await API.getCurrentValue(nameGpt, target, path);
+      console.log("[API.getCurrentValue] result:", currentValue);
+    } catch (error) {
+      console.error("[API.getCurrentValue] error:", error);
     }
-  });
-
-  command.execute();
-});
-
- // -------------------------------- gpo-get-policy
-require(['freeipa/rpc', 'freeipa/ipa'], function(rpc, IPA) {
-  var name_gpt = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
-  var target = 'Machine';
-  var path = 'Software\\BaseALT\\Policies\\Laps\\AdministratorAccountName';
-  var jsonData = 'test2026-04- 2';
-  var metadata = 'Machine/categories/ALT System/inherited/LAPS/policies/ALT_LAPS:Administrator Account Name';
-
-  var command = rpc.command({
-    entity: 'gpo',
-    method: 'set_policy',
-    args: [name_gpt, target, path, jsonData, metadata],
-    options: {
-      version: IPA.api_version,
-      // json: jsonData
-    },
-    on_success: function(data) {
-      console.log('data++--++-',data)
-      var result = data && data.result ? data.result.result : null;
-      console.log('[gpo-set-policy] sent json:', jsonData);
-      console.log('[gpo-set-policy] raw:', data);
-      console.log('[gpo-set-policy] result:', data.result.success);
-    },
-    on_error: function(xhr, text_status, error_thrown) {
-      console.error('[gpo-set-policy] error:', text_status, error_thrown || xhr);
-    }
-  });
-
-  command.execute();
-});
+  }
+  */
+  // Для ручной проверки можно временно вызвать так:
+  //void debugGetCurrentValueExample();
+  
 
   return {
     init: init
