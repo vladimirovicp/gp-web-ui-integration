@@ -542,6 +542,8 @@ define(["freeipa/ipa", "freeipa/rpc", "./API", "./locales/en", "./locales/ru"], 
     }
   ];
 
+  var name_gpt = '';
+
   // src/app/components/tree-view/policy-converter.js
   function convertPolicyCategory(categoryNode, ctx = {}) {
     const hasInherited = categoryNode.inherited && categoryNode.inherited.length > 0;
@@ -3556,6 +3558,7 @@ define(["freeipa/ipa", "freeipa/rpc", "./API", "./locales/en", "./locales/ru"], 
     }
   };
     options = options || {};
+    var name_gpt = null;
 
 
     if (options.policyName) {
@@ -3568,7 +3571,8 @@ define(["freeipa/ipa", "freeipa/rpc", "./API", "./locales/en", "./locales/ru"], 
         },
         on_success: function(data) {
           var gpoData = data && data.result ? data.result.result : {};
-          console.log("File System Path:", gpoData.gpcfilesyspath);
+          name_gpt = gpoData.gpcfilesyspath;
+          console.log("File System Path:", name_gpt);
         },
         on_error: function(xhr, text_status, error_thrown) {
           console.error("Failed to get File System Path:", error_thrown || text_status);
@@ -3594,8 +3598,9 @@ define(["freeipa/ipa", "freeipa/rpc", "./API", "./locales/en", "./locales/ru"], 
     }
   }
 
-  /*
+  
   // Пример использования API.getCurrentValue() в app.js
+  /*
   async function debugGetCurrentValueExample() {
     try {
       var nameGpt = "\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}";

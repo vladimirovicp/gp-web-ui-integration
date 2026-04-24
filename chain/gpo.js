@@ -141,6 +141,7 @@ define([
 
             var gpo_name = selected[0];
 
+
             // First fetch current GPO data
             var command = rpc.command({
                 entity: 'gpo',
