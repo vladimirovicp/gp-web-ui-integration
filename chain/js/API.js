@@ -1,4 +1,19 @@
 define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
+  function unwrapSingleValue(value) {
+    if (Array.isArray(value)) {
+      return value.length > 0 ? unwrapSingleValue(value[0]) : null;
+    }
+    return value;
+  }
+
+  function normalizeStringArg(value, fallback) {
+    var normalized = unwrapSingleValue(value);
+    if (normalized === null || normalized === void 0 || normalized === "") {
+      return fallback;
+    }
+    return String(normalized);
+  }
+
   function createRpcError(message, details) {
     var error = new Error(message);
     if (details) {
@@ -50,17 +65,27 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
   }
 
   async function getPolicy(path) {
-    var response = await executeGpoCommand("get_policy", [path || "/"]);
+    var response = await executeGpoCommand("get_policy", [normalizeStringArg(path, "/")]);
     return response.result || {};
   }
 
   async function getCurrentValue(nameGpt, target, path) {
-    var response = await executeGpoCommand("get_current_value", [nameGpt, target, path]);
+    var response = await executeGpoCommand("get_current_value", [
+      normalizeStringArg(nameGpt, ""),
+      normalizeStringArg(target, ""),
+      normalizeStringArg(path, "/")
+    ]);
     return response.result;
   }
 
   async function setPolicy(nameGpt, target, path, jsonData, metadata) {
-    var response = await executeGpoCommand("set_policy", [nameGpt, target, path, jsonData, metadata]);
+    var response = await executeGpoCommand("set_policy", [
+      normalizeStringArg(nameGpt, ""),
+      normalizeStringArg(target, ""),
+      normalizeStringArg(path, "/"),
+      normalizeStringArg(jsonData, ""),
+      normalizeStringArg(metadata, "")
+    ]);
     return response.result;
   }
 
