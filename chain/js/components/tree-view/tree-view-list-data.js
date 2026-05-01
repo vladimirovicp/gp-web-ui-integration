@@ -1,8 +1,7 @@
-define(['../../locales/translations', './tree-view-preferences', './policy-converter', './policy-en'], function(__dep0, __dep1, __dep2, __dep3) {
+define(['../../locales/translations', './tree-view-preferences', './policy-converter', '../../util/API'], function(__dep0, __dep1, __dep2, API) {
 var { t } = __dep0;
 var { treepreferences } = __dep1;
 var { convertPolicySection } = __dep2;
-var policyTreeData = __dep3;
 
 
 function buildTreeViewList(policyData = {}) {
@@ -104,8 +103,7 @@ function buildTreeViewList(policyData = {}) {
 }
 
 async function loadTreeViewList() {
-    const policyModule = policyTreeData;
-    const policyData = policyModule?.default ?? policyModule;
+    var policyData = await API.getPolicy('/');
 
     return buildTreeViewList(policyData);
 }
