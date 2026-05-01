@@ -2,7 +2,7 @@ define(['../../locales/translations', './tree-view-preferences', './policy-conve
 var { t } = __dep0;
 var { treepreferences } = __dep1;
 var { convertPolicySection } = __dep2;
-var policyData = __dep3;
+var policyTreeData = __dep3;
 
 
 function buildTreeViewList(policyData = {}) {
@@ -104,7 +104,7 @@ function buildTreeViewList(policyData = {}) {
 }
 
 async function loadTreeViewList() {
-    const policyModule = policyData;
+    const policyModule = policyTreeData;
     const policyData = policyModule?.default ?? policyModule;
 
     return buildTreeViewList(policyData);
