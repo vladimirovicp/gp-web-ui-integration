@@ -1,9 +1,10 @@
-define(['../../util/element-creator', '../../util/mainLocalStorage/admx'], function(__dep0, __dep1) {
+define(['../../util/element-creator', '../../util/mainLocalStorage/admx', '../../util/API'], function(__dep0, __dep1, API) {
 var { createElement } = __dep0;
 var { getAdmxEntriesByPaths, upsertAdmxEntries } = __dep1;
 
 
 const ADMX_DEFAULT_STATE = 'not-configured';
+const VALID_ADMX_STATES = new Set(['not-configured', 'enabled', 'disabled']);
 
 function addManagedEventListener(cleanups, target, eventName, handler, options) {
     if (!target || typeof target.addEventListener !== 'function' || typeof handler !== 'function') {
@@ -97,6 +98,127 @@ function getEnumDefaultValue(items = {}, defaultItem) {
     }
 
     return itemKeys[0];
+}
+
+function isPlainObject(value) {
+    return typeof value === 'object'
+        && value !== null
+        && !Array.isArray(value);
+}
+
+function normalizeAdmxState(state) {
+    return VALID_ADMX_STATES.has(state)
+        ? state
+        : ADMX_DEFAULT_STATE;
+}
+
+function getDefaultControlValue(metadata = {}) {
+    switch (metadata?.type) {
+        case 'enum':
+            return getEnumDefaultValue(metadata.items ?? {}, metadata.defaultItem);
+        case 'boolean':
+            return Object.prototype.hasOwnProperty.call(metadata, 'falseValue')
+                ? metadata.falseValue
+                : false;
+        case 'decimal':
+        case 'text':
+        default:
+            return metadata.defaultValue ?? '';
+    }
+}
+
+function applyDefaultValuesToAdmxForm({ rootElement, controlEntries = [] } = {}) {
+    if (!rootElement) {
+        return;
+    }
+
+    setSelectedAdmxState(rootElement, ADMX_DEFAULT_STATE);
+
+    controlEntries.forEach(({ storagePath, metadata }) => {
+        const controlElement = getControlElementByStoragePath(rootElement, storagePath);
+        applyControlValue(controlElement, metadata, getDefaultControlValue(metadata));
+    });
+
+    syncControlsWithPolicyState(rootElement);
+}
+
+function unwrapCurrentValue(rawValue) {
+    if (Array.isArray(rawValue)) {
+        return rawValue.length > 0
+            ? unwrapCurrentValue(rawValue[0])
+            : null;
+    }
+
+    if (isPlainObject(rawValue)) {
+        const candidateKeys = ['result', 'value', 'currentValue'];
+
+        for (const key of candidateKeys) {
+            if (Object.prototype.hasOwnProperty.call(rawValue, key)) {
+                return unwrapCurrentValue(rawValue[key]);
+            }
+        }
+    }
+
+    return rawValue;
+}
+
+function parseAdmxCurrentValue(rawValue) {
+    const normalizedRawValue = unwrapCurrentValue(rawValue);
+
+    if (isPlainObject(normalizedRawValue) && Object.prototype.hasOwnProperty.call(normalizedRawValue, 'state')) {
+        return {
+            hasData: true,
+            state: normalizeAdmxState(normalizedRawValue.state),
+            value: Object.prototype.hasOwnProperty.call(normalizedRawValue, 'value')
+                ? normalizedRawValue.value
+                : '',
+        };
+    }
+
+    if (normalizedRawValue === null || normalizedRawValue === undefined || normalizedRawValue === '') {
+        return {
+            hasData: false,
+            state: ADMX_DEFAULT_STATE,
+            value: null,
+        };
+    }
+
+    const stringValue = String(normalizedRawValue);
+    const delimiterIndex = stringValue.indexOf(';');
+
+    if (delimiterIndex === -1) {
+        return {
+            hasData: true,
+            state: normalizeAdmxState(stringValue),
+            value: '',
+        };
+    }
+
+    return {
+        hasData: true,
+        state: normalizeAdmxState(stringValue.slice(0, delimiterIndex)),
+        value: stringValue.slice(delimiterIndex + 1),
+    };
+}
+
+function buildAdmxMetadataPath({ item = {}, admxTreePath = null } = {}) {
+    const effectiveAdmxTreePath = admxTreePath ?? item?.admxTreePath ?? null;
+    const policyKey = item?.policyKey ?? '';
+
+    if (effectiveAdmxTreePath && policyKey) {
+        return `${effectiveAdmxTreePath}/${policyKey}`;
+    }
+
+    return effectiveAdmxTreePath ?? '';
+}
+
+function buildAdmxSetValue(state, fieldValue) {
+    const normalizedState = normalizeAdmxState(state);
+    const normalizedValue = fieldValue === null || fieldValue === undefined
+        ? ''
+        : String(fieldValue);
+
+    return `${normalizedState};${normalizedValue}`;
 }
 
 function createCommonControlAttrs({ metadata = {}, policyPath = '', storagePath = '', type = '', isDisabled = true } = {}) {
@@ -432,6 +554,15 @@ function restorePersistedAdmxValues({ rootElement, persistedEntries = {}, policy
     syncControlsWithPolicyState(rootElement);
 }
 
+function hasPersistedAdmxData({ persistedEntries = {}, policyValueEntry = null, controlEntries = [] } = {}) {
+    const candidatePaths = [
+        policyValueEntry?.storagePath ?? null,
+        ...controlEntries.map(({ storagePath }) => storagePath),
+    ].filter(Boolean);
+
+    return candidatePaths.some((path) => Object.prototype.hasOwnProperty.call(persistedEntries, path));
+}
+
 function resolvePolicyValueForState(policyValueEntry = null, state = ADMX_DEFAULT_STATE) {
     if (!policyValueEntry?.metadata) {
         return null;
@@ -503,6 +634,8 @@ function buildPersistedAdmxEntries({
  */
 function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null } = {}) {
     const effectiveAdmxTreePath = admxTreePath ?? item?.admxTreePath ?? null;
+    const effectiveTarget = item?.target ?? item?.policyData?.header?.class ?? item?.header?.class ?? '';
+    const metadataPath = buildAdmxMetadataPath({ item, admxTreePath: effectiveAdmxTreePath });
     const headerEl = header?.getElement?.();
     const btnApply = headerEl?.querySelector('.admx__btn-apply') ?? null;
     const btnCancel = headerEl?.querySelector('.admx__btn-cancel') ?? null;
@@ -515,6 +648,11 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
         policyValueEntry?.storagePath ?? null,
         ...controlEntries.map(({ storagePath }) => storagePath),
     ].filter(Boolean));
+    const hasPersistedEntries = hasPersistedAdmxData({
+        persistedEntries,
+        policyValueEntry,
+        controlEntries,
+    });
     const controlRows = controlEntries.map(({ metadata, policyPath, storagePath }) => renderAdmxControlRow({
         metadata,
         policyPath,
@@ -677,25 +815,37 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
 
     const admxTemplateElement = admxTemplate.getElement();
     const statePolicyElement = admxTemplateElement.querySelector('.gp__admx-state-policy');
+    let initialFormSnapshot = null;
+    let isLoading = true;
+    let isSaving = false;
 
     const setHeaderAdmxButtonsActive = (active) => {
-        if (btnApply) btnApply.classList.toggle('active', active);
-        if (btnCancel) btnCancel.classList.toggle('active', active);
+        const canUseButtons = !isLoading && !isSaving && initialFormSnapshot !== null;
+
+        if (btnApply) {
+            btnApply.classList.toggle('active', canUseButtons && active);
+        }
+
+        if (btnCancel) {
+            btnCancel.classList.toggle('active', canUseButtons && active);
+        }
     };
 
-    restorePersistedAdmxValues({
-        rootElement: admxTemplateElement,
-        persistedEntries,
-        policyValueEntry,
-        controlEntries,
-    });
-
-    let initialFormSnapshot = buildAdmxFormSnapshot({
-        rootElement: admxTemplateElement,
-        controlEntries,
-    });
+    const restorePersistedState = () => {
+        restorePersistedAdmxValues({
+            rootElement: admxTemplateElement,
+            persistedEntries,
+            policyValueEntry,
+            controlEntries,
+        });
+    };
 
     const refreshHeaderAdmxButtons = () => {
+        if (initialFormSnapshot === null) {
+            setHeaderAdmxButtonsActive(false);
+            return;
+        }
+
         const currentSnapshot = buildAdmxFormSnapshot({
             rootElement: admxTemplateElement,
             controlEntries,
@@ -707,6 +857,10 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
     setHeaderAdmxButtonsActive(false);
 
     const handleStatePolicyChange = (event) => {
+        if (isLoading || isSaving) {
+            return;
+        }
+
         const targetElement = event.target;
 
         if (!(targetElement instanceof HTMLInputElement)) {
@@ -722,6 +876,10 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
     };
 
     const handleControlsChange = (event) => {
+        if (isLoading || isSaving) {
+            return;
+        }
+
         const targetElement = event.target;
 
         if (!(targetElement instanceof HTMLElement)) {
@@ -740,7 +898,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
     addManagedEventListener(cleanups, admxTemplateElement, 'input', handleControlsChange);
 
     const handleCancel = () => {
-        if (!btnCancel?.classList.contains('active')) {
+        if (!btnCancel?.classList.contains('active') || initialFormSnapshot === null || isLoading || isSaving) {
             return;
         }
 
@@ -752,35 +910,165 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
         refreshHeaderAdmxButtons();
     };
 
-    const handleApply = () => {
-        if (!btnApply?.classList.contains('active')) {
+    const handleApply = async () => {
+        if (!btnApply?.classList.contains('active') || isLoading || isSaving) {
             return;
         }
 
-        const admxEntries = buildPersistedAdmxEntries({
-            rootElement: admxTemplateElement,
-            item,
-            admxTreePath: effectiveAdmxTreePath,
-            controlEntries,
-            policyValueEntry,
-        });
+        try {
+            isSaving = true;
+            setHeaderAdmxButtonsActive(false);
 
-        const didSave = upsertAdmxEntries(admxEntries);
+            const currentNameGpt = await API.waitForNameGpt();
 
-        if (!didSave) {
+            if (!currentNameGpt) {
+                throw new Error('GPO file system path is not available.');
+            }
+
+            if (!effectiveTarget) {
+                throw new Error('ADMX target is not available.');
+            }
+
+            await Promise.all(controlEntries.map(async (controlEntry) => {
+                const controlPath = controlEntry.storagePath || controlEntry.policyPath;
+
+                if (!controlPath) {
+                    return;
+                }
+
+                const controlElement = getControlElementByStoragePath(admxTemplateElement, controlEntry.storagePath);
+                const controlValue = readControlValue(controlElement, controlEntry.metadata);
+                const setValue = buildAdmxSetValue(getSelectedAdmxState(admxTemplateElement), controlValue);
+
+                console.log('[ADMX] API.set payload:', {
+                    nameGpt: currentNameGpt,
+                    target: effectiveTarget,
+                    path: controlPath,
+                    value: setValue,
+                    metadata: metadataPath,
+                });
+
+                await API.set(currentNameGpt, effectiveTarget, controlPath, setValue, metadataPath);
+            }));
+
+            const admxEntries = buildPersistedAdmxEntries({
+                rootElement: admxTemplateElement,
+                item,
+                admxTreePath: effectiveAdmxTreePath,
+                controlEntries,
+                policyValueEntry,
+            });
+
+            const didSave = upsertAdmxEntries(admxEntries);
+
+            if (!didSave) {
+                return;
+            }
+
+            initialFormSnapshot = buildAdmxFormSnapshot({
+                rootElement: admxTemplateElement,
+                controlEntries,
+            });
+        } catch (error) {
+            console.error('[ADMX] Failed to apply policy values.', error);
             return;
+        } finally {
+            isSaving = false;
+            refreshHeaderAdmxButtons();
         }
-
-        initialFormSnapshot = buildAdmxFormSnapshot({
-            rootElement: admxTemplateElement,
-            controlEntries,
-        });
-
-        setHeaderAdmxButtonsActive(false);
     };
 
     addManagedEventListener(cleanups, btnCancel, 'click', handleCancel);
     addManagedEventListener(cleanups, btnApply, 'click', handleApply);
+
+    const loadCurrentAdmxValues = async () => {
+        try {
+            const currentNameGpt = await API.waitForNameGpt();
+
+            if (!currentNameGpt || !effectiveTarget) {
+                applyDefaultValuesToAdmxForm({
+                    rootElement: admxTemplateElement,
+                    controlEntries,
+                });
+                return;
+            }
+
+            const results = await Promise.all(controlEntries.map(async (controlEntry) => {
+                const controlPath = controlEntry.storagePath || controlEntry.policyPath;
+
+                if (!controlPath) {
+                    return {
+                        controlEntry,
+                        parsedValue: {
+                            hasData: false,
+                            state: ADMX_DEFAULT_STATE,
+                            value: null,
+                        },
+                    };
+                }
+
+                console.log('[ADMX] API.get_current_value payload:', {
+                    nameGpt: currentNameGpt,
+                    target: effectiveTarget,
+                    path: controlPath,
+                });
+
+                const rawValue = await API.get_current_value(currentNameGpt, effectiveTarget, controlPath);
+
+                console.log('[ADMX] API.get_current_value result:', {
+                    path: controlPath,
+                    result: rawValue,
+                });
+
+                return {
+                    controlEntry,
+                    parsedValue: parseAdmxCurrentValue(rawValue),
+                };
+            }));
+
+            const firstValue = results[0]?.parsedValue ?? null;
+            const hasAnyData = results.some(({ parsedValue }) => parsedValue?.hasData);
+
+            if (!hasAnyData) {
+                if (hasPersistedEntries) {
+                    console.log('[ADMX] API returned empty values. Restoring persisted local state.');
+                    restorePersistedState();
+                    return;
+                }
+
+                applyDefaultValuesToAdmxForm({
+                    rootElement: admxTemplateElement,
+                    controlEntries,
+                });
+                return;
+            }
+
+            setSelectedAdmxState(admxTemplateElement, normalizeAdmxState(firstValue?.state));
+
+            results.forEach(({ controlEntry, parsedValue }) => {
+                const controlElement = getControlElementByStoragePath(admxTemplateElement, controlEntry.storagePath);
+                const nextValue = parsedValue?.hasData
+                    ? parsedValue.value
+                    : getDefaultControlValue(controlEntry.metadata);
+
+                applyControlValue(controlElement, controlEntry.metadata, nextValue);
+            });
+
+            syncControlsWithPolicyState(admxTemplateElement);
+        } catch (error) {
+            console.error('[ADMX] Failed to load current values.', error);
+            restorePersistedState();
+        } finally {
+            isLoading = false;
+            initialFormSnapshot = buildAdmxFormSnapshot({
+                rootElement: admxTemplateElement,
+                controlEntries,
+            });
+            setHeaderAdmxButtonsActive(false);
+        }
+    };
+
+    loadCurrentAdmxValues();
 
     let cleanedUp = false;
     admxTemplate.cleanup = () => {
