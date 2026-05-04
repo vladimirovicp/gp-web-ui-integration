@@ -36,6 +36,29 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
     }
 
     /**
+     * Нормализует успешный RPC-ответ.
+     *
+     * Для некоторых методов сервер возвращает полезные данные в data.result.result,
+     * а для некоторых успешный ответ может не содержать этого поля вообще.
+     *
+     * @param {Object} data — исходный RPC-ответ
+     * @returns {*} — полезные данные ответа или объект успешного результата
+     */
+    function normalizeSuccessResponse(data) {
+        var rpcResult = data && data.result ? data.result : null;
+
+        if (rpcResult && rpcResult.result !== undefined && rpcResult.result !== null) {
+            return rpcResult.result;
+        }
+
+        return {
+            success: true,
+            data: rpcResult,
+            raw: data || null
+        };
+    }
+
+    /**
      * Инициализирует получение файлового пути GPO (nameGpt) по имени политики.
      *
      * Вызывается один раз при инициализации приложения (app.init).
@@ -146,17 +169,88 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
     }
 
     /**
+     * Получает текущее значение политики по указанным параметрам.
+     *
+     * @param {string} nameGpt — файловый путь GPO
+     * @param {string} target — область применения политики (Machine/User)
+     * @param {string} path — путь политики
+     * @returns {Promise<*>} — промис с текущим значением политики
+     */
+    function get_current_value(nameGpt, target, path) {
+        return new Promise(function(resolve, reject) {
+            rpc.command({
+                entity: 'gpo',
+                method: 'get_current_value',
+                args: [
+                    nameGpt || '',
+                    target || '',
+                    path || '/'
+                ],
+                options: {
+                    version: IPA.api_version
+                },
+                on_success: function(data) {
+                    var result = (data.result && data.result.result) || null;
+                    resolve(result);
+                },
+                on_error: function(xhr, text_status, error_thrown) {
+                    reject(error_thrown || new Error('Failed to get current value'));
+                }
+            }).execute();
+        });
+    }
+
+    /**
+     * Устанавливает значение политики по указанным параметрам.
+     *
+     * @param {string} nameGpt — файловый путь GPO
+     * @param {string} target — область применения политики (Machine/User)
+     * @param {string} path — путь политики
+     * @param {string} value — новое значение политики
+     * @param {string} metadata — метаданные политики
+     * @returns {Promise<*>} — промис с результатом сохранения
+     */
+    function set(nameGpt, target, path, value, metadata) {
+        return new Promise(function(resolve, reject) {
+            rpc.command({
+                entity: 'gpo',
+                method: 'set_policy',
+                args: [
+                    nameGpt || '',
+                    target || '',
+                    path || '/',
+                    value || '',
+                    metadata || ''
+                ],
+                options: {
+                    version: IPA.api_version
+                },
+                on_success: function(data) {
+                    resolve(normalizeSuccessResponse(data));
+                },
+                on_error: function(xhr, text_status, error_thrown) {
+                    reject(error_thrown || new Error('Failed to set policy'));
+                }
+            }).execute();
+        });
+    }
+
+    /**
      * Публичный API модуля.
      *
      * initNameGpt     — инициализация nameGpt (вызывается один раз при старте)
      * waitForNameGpt  — асинхронное ожидание nameGpt (для async-функций)
      * getNameGpt      — синхронное получение nameGpt (если уже загружен)
      * getPolicy       — загрузка дерева политик по пути
+     * get_current_value — получение текущего значения политики
+     * set             — установка значения политики
      */
     return {
         initNameGpt: initNameGpt,
         waitForNameGpt: waitForNameGpt,
         getNameGpt: getNameGpt,
-        getPolicy: getPolicy
+        getPolicy: getPolicy,
+        get_current_value: get_current_value,
+        set: set
     };
 });
