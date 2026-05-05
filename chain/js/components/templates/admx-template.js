@@ -409,15 +409,15 @@ function parseAdmxCurrentValue(rawValue) {
         }
 
         // Объект с прямым указанием state — альтернативный формат.
-        if (Object.prototype.hasOwnProperty.call(normalizedRawValue, 'state')) {
-            return {
-                hasData: true,
-                state: normalizeAdmxState(normalizedRawValue.state),
-                value: Object.prototype.hasOwnProperty.call(normalizedRawValue, 'value')
-                    ? normalizedRawValue.value
-                    : '',
-            };
-        }
+        // if (Object.prototype.hasOwnProperty.call(normalizedRawValue, 'state')) {
+        //     return {
+        //         hasData: true,
+        //         state: normalizeAdmxState(normalizedRawValue.state),
+        //         value: Object.prototype.hasOwnProperty.call(normalizedRawValue, 'value')
+        //             ? normalizedRawValue.value
+        //             : '',
+        //     };
+        // }
     }
 
     if (normalizedRawValue === null || normalizedRawValue === undefined || normalizedRawValue === '') {
@@ -429,6 +429,9 @@ function parseAdmxCurrentValue(rawValue) {
     }
 
     // Строка формата "state;value" — парсим через утилиту.
+
+    console.log('normalizedRawValue = ',normalizedRawValue)
+
     return parseStringValueAsAdmxState(normalizedRawValue);
 }
 
