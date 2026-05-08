@@ -409,15 +409,15 @@ function parseAdmxCurrentValue(rawValue) {
         }
 
         // Объект с прямым указанием state — альтернативный формат.
-        // if (Object.prototype.hasOwnProperty.call(normalizedRawValue, 'state')) {
-        //     return {
-        //         hasData: true,
-        //         state: normalizeAdmxState(normalizedRawValue.state),
-        //         value: Object.prototype.hasOwnProperty.call(normalizedRawValue, 'value')
-        //             ? normalizedRawValue.value
-        //             : '',
-        //     };
-        // }
+        if (Object.prototype.hasOwnProperty.call(normalizedRawValue, 'state')) {
+            return {
+                hasData: true,
+                state: normalizeAdmxState(normalizedRawValue.state),
+                value: Object.prototype.hasOwnProperty.call(normalizedRawValue, 'value')
+                    ? normalizedRawValue.value
+                    : '',
+            };
+        }
     }
 
     if (normalizedRawValue === null || normalizedRawValue === undefined || normalizedRawValue === '') {
@@ -1546,7 +1546,8 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                     metadata: metadataPath,
                 });
 
-                await API.set(currentNameGpt, effectiveTarget, controlPath, setValue, metadataPath);
+                const setResult = await API.set(currentNameGpt, effectiveTarget, controlPath, setValue, metadataPath);
+                console.log('[ADMX] API.set response:', setResult);
             }));
 
             // Сохраняем в localStorage для fallback при пустом ответе сервера.

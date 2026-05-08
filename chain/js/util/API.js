@@ -211,6 +211,9 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
      * @returns {Promise<*>} — промис с результатом сохранения
      */
     function set(nameGpt, target, path, value, metadata) {
+
+        console.log(nameGpt, target, path, value, metadata)
+
         return new Promise(function(resolve, reject) {
             rpc.command({
                 entity: 'gpo',
