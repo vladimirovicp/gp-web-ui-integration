@@ -1,26 +1,13 @@
 define(['../../util/element-creator', '../../util/API'], function(__dep0, API) {
 var { createElement } = __dep0;
 
-// const NAME_GPT = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
-// const TARGET = 'Machine';
-// const PATH = 'Software\\BaseALT\\Policies\\Laps\\PostAuthenticationResetDelay';
-// const VALUE = 'enabled;18';
-// const METADATA = 'Machine/categories/Система ALT/inherited/LAPS/policies/ALT_LAPS:LAPS_PostAuthenticationActions';
 
-
-// const NAME_GPT = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
-// const TARGET = 'Machine';
-// const PATH = 'Software\\\\BaseALT\\\\Policies\\\\Laps\\\\AdministratorAccountName';
-// const VALUE = 'enabled;18';
-// const METADATA = 'Machine/categories/ALT System/inherited/LAPS/policies/ALT_LAPS:Administrator Account Name';
-
-const NAME_GPT = '\\\\example.test\\SysVol\\example.test\\Policies\\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
+// const NAME_GPT = '\\example.test\SysVol\example.test\Policies\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}';
+const NAME_GPT = String.raw`\\example.test\SysVol\example.test\Policies\{16D7EE44-417B-4A76-BE92-B0C5C1030A82}`;
 const TARGET = 'Machine';
-const PATH = 'Software\\\\BaseALT\\\\Policies\\\\Laps\\\\PostAuthenticationResetDelay';
-const VALUE = 'enabled;111';
-const METADATA = 'Machine/categories/Система ALT/inherited/LAPS/policies/ALT_LAPS:LAPS_PostAuthenticationActions';
-
-
+// const PATH = 'Software\\BaseALT\\Policies\\Laps\\PostAuthenticationResetDelay';
+const PATH = String.raw`Software\\BaseALT\\Policies\\Laps\\PostAuthenticationResetDelay`;
+const VALUE = 'test-10';
 function handleGetCurrentValue() {
     API.get_current_value(NAME_GPT, TARGET, PATH)
         .then(function(result) {
@@ -32,7 +19,7 @@ function handleGetCurrentValue() {
 }
 
 function handleSet() {
-    API.set(NAME_GPT, TARGET, PATH, VALUE, METADATA)
+    API.set(NAME_GPT, TARGET, PATH, VALUE)
         .then(function(result) {
             console.log(result);
         })

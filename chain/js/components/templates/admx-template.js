@@ -440,28 +440,6 @@ function parseAdmxCurrentValue(rawValue) {
 // ============================================================================
 
 /**
- * Строит metadata-путь для API-запроса set_policy.
- * Формат: "Machine/categories/.../policies/policyKey".
- *
- * Используется как параметр metadata при вызове API.set().
- *
- * @param {Object} params
- * @param {Object} params.item - Выбранный элемент дерева.
- * @param {string|null} params.admxTreePath - Путь в дереве ADMX-политик.
- * @returns {string} - Полный metadata-путь.
- */
-function buildAdmxMetadataPath({ item = {}, admxTreePath = null } = {}) {
-    const effectiveAdmxTreePath = admxTreePath ?? item?.admxTreePath ?? null;
-    const policyKey = item?.policyKey ?? '';
-
-    if (effectiveAdmxTreePath && policyKey) {
-        return `${effectiveAdmxTreePath}/${policyKey}`;
-    }
-
-    return effectiveAdmxTreePath ?? '';
-}
-
-/**
  * Формирует строку значения для записи на сервер в формате "state;value".
  *
  * Примеры:
@@ -1125,9 +1103,6 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
     /** Целевая область политики: 'Machine' или 'User'. */
     const effectiveTarget = item?.target ?? item?.policyData?.header?.class ?? item?.header?.class ?? '';
 
-    /** Полный metadata-путь для API.set(). */
-    const metadataPath = buildAdmxMetadataPath({ item, admxTreePath: effectiveAdmxTreePath });
-
     /** DOM-элемент заголовка с кнопками Apply/Cancel. */
     const headerEl = header?.getElement?.();
     const btnApply = headerEl?.querySelector('.admx__btn-apply') ?? null;
@@ -1543,10 +1518,9 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                     target: effectiveTarget,
                     path: controlPath,
                     value: setValue,
-                    metadata: metadataPath,
                 });
 
-                const setResult = await API.set(currentNameGpt, effectiveTarget, controlPath, setValue, metadataPath);
+                const setResult = await API.set(currentNameGpt, effectiveTarget, controlPath, setValue);
                 console.log('[ADMX] API.set response:', setResult);
             }));
 

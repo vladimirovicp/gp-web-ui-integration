@@ -207,12 +207,11 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
      * @param {string} target — область применения политики (Machine/User)
      * @param {string} path — путь политики
      * @param {string} value — новое значение политики
-     * @param {string} metadata — метаданные политики
      * @returns {Promise<*>} — промис с результатом сохранения
      */
-    function set(nameGpt, target, path, value, metadata) {
+    function set(nameGpt, target, path, value) {
 
-        console.log(nameGpt, target, path, value, metadata)
+        console.log('set: ', nameGpt, target, path, value)
 
         return new Promise(function(resolve, reject) {
             rpc.command({
@@ -222,8 +221,7 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
                     nameGpt || '',
                     target || '',
                     path || '/',
-                    value || '',
-                    metadata || ''
+                    value || ''
                 ],
                 options: {
                     version: IPA.api_version
