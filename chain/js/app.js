@@ -18,7 +18,8 @@ define([
     './components/tree-view/tree-view-list',
     './util/element-creator',
     './util/mainLocalStorage/shortcuts',
-    './util/mainLocalStorage/admx'
+    './util/mainLocalStorage/admx',
+    './util/API'
 ], function(
     headerModule,
     mainModule,
@@ -39,7 +40,8 @@ define([
     treeViewListModule,
     elementCreatorModule,
     shortcutsStorageModule,
-    admxStorageModule
+    admxStorageModule,
+    APIModule
 ) {
     var renderHeader = headerModule.renderHeader;
     var renderMain = mainModule.renderMain;
@@ -427,6 +429,10 @@ define([
         }
 
         container.innerHTML = '';
+
+        if (APIModule && APIModule.initNameGpt) {
+            APIModule.initNameGpt((options || {}).policyName);
+        }
 
         initShortcutsStorage();
         initAdmxStorage();

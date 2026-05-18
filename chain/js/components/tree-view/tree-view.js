@@ -55,7 +55,7 @@ async function initializeTreeView(element, workspace = null, treeViewState = nul
         element.append(renderTreeViewList(treeData, workspace, treeViewState));
         treeViewState?.initializeSelection?.();
     } catch (error) {
-        console.error('[tree-view] Failed to load policy-en.json.', error);
+        console.error('[tree-view] Failed to load data.', error);
 
         if (workspace) {
             workspace.clear();
