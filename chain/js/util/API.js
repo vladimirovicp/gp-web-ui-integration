@@ -248,7 +248,7 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
         return new Promise(function(resolve, reject) {
             rpc.command({
                 entity: 'gpo',
-                method: 'delete-policy',
+                method: 'delete_policy',
                 args: [
                     nameGpt || '',
                     target || '',
@@ -261,7 +261,7 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
                     resolve(normalizeSuccessResponse(data));
                 },
                 on_error: function(xhr, text_status, error_thrown) {
-                    reject(new Error('Failed to delete policy'));
+                    reject(error_thrown || new Error('Failed to delete policy'));
                 }
             }).execute();
         });

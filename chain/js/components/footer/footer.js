@@ -28,22 +28,39 @@ function handleSet() {
         });
 }
 
+function handleDeletePolicy() {
+    API.deletePolicy(NAME_GPT, TARGET, PATH)
+        .then(function(result) {
+            console.log(result);
+        })
+        .catch(function(error) {
+            console.error(error);
+        });
+}
+
 function renderFooter(container) {
     const element = createElement('div', {
         className: 'gp__footer',
         children: [
             createElement('button', {
-                className: ['button', 'gp__footer-btn-get-current-value'],
+                className: ['button', 'active','gp__footer-btn-get-current-value'],
                 text: 'get_current_value',
                 events: {
                     click: handleGetCurrentValue,
                 },
             }),
             createElement('button', {
-                className: ['button', 'gp__footer-btn-set'],
+                className: ['button', 'active', 'gp__footer-btn-set'],
                 text: 'set',
                 events: {
                     click: handleSet,
+                },
+            }),
+            createElement('button', {
+                className: ['button', 'active', 'gp__footer-btn-delete-policy'],
+                text: 'deletePolicy',
+                events: {
+                    click: handleDeletePolicy,
                 },
             }),
         ],
