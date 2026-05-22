@@ -6,37 +6,21 @@
  */
 define([
     '../../util/element-creator',
-    '../../util/mainLocalStorage/admx',
     './admx/admx-policy-normalizers',
     './admx/admx-controls-renderer',
-    './admx/admx-storage-state',
     './admx/admx-template-controller',
-], function(__dep0, __dep1, __dep2, __dep3, __dep4, __dep5) {
+], function(__dep0, __dep1, __dep2, __dep3) {
 var { createElement } = __dep0;
-var { getAdmxEntriesByPaths } = __dep1;
-var { normalizePolicyEntries } = __dep2;
-var { formatExplainText, renderAdmxControlRow } = __dep3;
-var { hasPersistedAdmxData } = __dep4;
-var { setupAdmxTemplateController } = __dep5;
+var { normalizePolicyEntries } = __dep1;
+var { formatExplainText, renderAdmxControlRow } = __dep2;
+var { setupAdmxTemplateController } = __dep3;
 
 function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null } = {}) {
-    const effectiveAdmxTreePath = admxTreePath ?? item?.admxTreePath ?? null;
     const effectiveTarget = item?.target ?? item?.policyData?.header?.class ?? item?.header?.class ?? '';
 
     const policyData = item.policyData ?? {};
     const policyHeader = policyData.header ?? {};
     const { controlEntries, policyValueEntry } = normalizePolicyEntries(policyData, policyHeader);
-
-    const persistedEntries = getAdmxEntriesByPaths([
-        policyValueEntry?.storagePath ?? null,
-        ...controlEntries.map(({ storagePath }) => storagePath),
-    ].filter(Boolean));
-
-    const hasPersistedEntries = hasPersistedAdmxData({
-        persistedEntries,
-        policyValueEntry,
-        controlEntries,
-    });
 
     const controlRows = controlEntries.map(({ metadata, policyPath, storagePath }) => renderAdmxControlRow({
         metadata,
@@ -206,13 +190,9 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
         admxTemplateElement,
         statePolicyElement,
         header,
-        item,
         effectiveTarget,
-        effectiveAdmxTreePath,
         controlEntries,
         policyValueEntry,
-        persistedEntries,
-        hasPersistedEntries,
     });
 
     return admxTemplate;

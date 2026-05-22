@@ -1,17 +1,14 @@
 define([
     '../../../util/API',
-    '../../../util/mainLocalStorage/admx',
     './admx-constants',
     './admx-policy-normalizers',
     './admx-value-parser',
-    './admx-form-state',
-    './admx-storage-state'
-], function(__dep0, __dep1, __dep2, __dep3, __dep4, __dep5, __dep6) {
+    './admx-form-state'
+], function(__dep0, __dep1, __dep2, __dep3, __dep4) {
 var API = __dep0;
-var { upsertAdmxEntries, removeAdmxEntriesByPaths } = __dep1;
-var { ADMX_DEFAULT_STATE } = __dep2;
-var { normalizeAdmxState, getDefaultControlValue } = __dep3;
-var { parseAdmxCurrentValue, buildAdmxSetValue } = __dep4;
+var { ADMX_DEFAULT_STATE } = __dep1;
+var { normalizeAdmxState, getDefaultControlValue } = __dep2;
+var { parseAdmxCurrentValue, buildAdmxSetValue } = __dep3;
 var {
     syncControlsWithPolicyState,
     getControlElementByStoragePath,
@@ -22,11 +19,7 @@ var {
     applyDefaultValuesToAdmxForm,
     setSelectedAdmxState,
     getSelectedAdmxState,
-} = __dep5;
-var {
-    restorePersistedAdmxValues,
-    buildPersistedAdmxEntries,
-} = __dep6;
+} = __dep4;
 
 function addManagedEventListener(cleanups, target, eventName, handler, options) {
     if (!target || typeof target.addEventListener !== 'function' || typeof handler !== 'function') {
@@ -42,28 +35,17 @@ function setupAdmxTemplateController({
     admxTemplateElement,
     statePolicyElement,
     header = null,
-    item = {},
     effectiveTarget = '',
-    effectiveAdmxTreePath = null,
     controlEntries = [],
-    policyValueEntry = null,
-    persistedEntries = {},
-    hasPersistedEntries = false,
 } = {}) {
     const headerEl = header?.getElement?.();
     const btnApply = headerEl?.querySelector('.admx__btn-apply') ?? null;
     const btnCancel = headerEl?.querySelector('.admx__btn-cancel') ?? null;
     const cleanups = [];
-    const policyStoragePaths = [
-        policyValueEntry?.storagePath ?? null,
-        ...controlEntries.map(({ storagePath }) => storagePath),
-    ].filter(Boolean);
 
     let initialFormSnapshot = null;
     let isLoading = true;
     let isSaving = false;
-    let currentPersistedEntries = persistedEntries;
-    let hasLocalPersistedEntries = hasPersistedEntries;
 
     const setHeaderAdmxButtonsActive = (active) => {
         const canUseButtons = !isLoading && !isSaving && initialFormSnapshot !== null;
@@ -75,15 +57,6 @@ function setupAdmxTemplateController({
         if (btnCancel) {
             btnCancel.classList.toggle('active', canUseButtons && active);
         }
-    };
-
-    const restorePersistedState = () => {
-        restorePersistedAdmxValues({
-            rootElement: admxTemplateElement,
-            persistedEntries: currentPersistedEntries,
-            policyValueEntry,
-            controlEntries,
-        });
     };
 
     const refreshHeaderAdmxButtons = () => {
@@ -209,15 +182,6 @@ function setupAdmxTemplateController({
             }));
 
             if (selectedState === ADMX_DEFAULT_STATE) {
-                const didRemovePersistedEntries = removeAdmxEntriesByPaths(policyStoragePaths);
-
-                if (!didRemovePersistedEntries) {
-                    throw new Error('Failed to remove persisted ADMX entries.');
-                }
-
-                currentPersistedEntries = {};
-                hasLocalPersistedEntries = false;
-
                 applyDefaultValuesToAdmxForm({
                     rootElement: admxTemplateElement,
                     controlEntries,
@@ -227,20 +191,6 @@ function setupAdmxTemplateController({
                     rootElement: admxTemplateElement,
                     controlEntries,
                 });
-                return;
-            }
-
-            const admxEntries = buildPersistedAdmxEntries({
-                rootElement: admxTemplateElement,
-                item,
-                admxTreePath: effectiveAdmxTreePath,
-                controlEntries,
-                policyValueEntry,
-            });
-
-            const didSave = upsertAdmxEntries(admxEntries);
-
-            if (!didSave) {
                 return;
             }
 
@@ -306,12 +256,6 @@ function setupAdmxTemplateController({
             const hasAnyData = results.some(({ parsedValue }) => parsedValue?.hasData);
 
             if (!hasAnyData) {
-                if (hasLocalPersistedEntries) {
-                    console.log('[ADMX] API returned empty values. Restoring persisted local state.');
-                    restorePersistedState();
-                    return;
-                }
-
                 applyDefaultValuesToAdmxForm({
                     rootElement: admxTemplateElement,
                     controlEntries,
@@ -333,7 +277,10 @@ function setupAdmxTemplateController({
             syncControlsWithPolicyState(admxTemplateElement);
         } catch (error) {
             console.error('[ADMX] Failed to load current values.', error);
-            restorePersistedState();
+            applyDefaultValuesToAdmxForm({
+                rootElement: admxTemplateElement,
+                controlEntries,
+            });
         } finally {
             isLoading = false;
             initialFormSnapshot = buildAdmxFormSnapshot({
