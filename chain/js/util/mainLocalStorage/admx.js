@@ -135,5 +135,30 @@ function upsertAdmxEntries(entries = []) {
 
     return saveAdmxToLocalStorage(admx);
 }
-    return { initAdmxStorage, getAdmxFromLocalStorage, saveAdmxToLocalStorage, getAdmxEntriesByPaths, upsertAdmxEntries };
+
+/**
+ * Removes ADMX entries for the requested policy paths.
+ *
+ * @param {string[]} paths
+ * @returns {boolean}
+ */
+function removeAdmxEntriesByPaths(paths = []) {
+    if (!Array.isArray(paths)) {
+        return false;
+    }
+
+    const admx = getAdmxFromLocalStorage();
+
+    paths.forEach((path) => {
+        if (typeof path !== 'string' || path.length === 0) {
+            return;
+        }
+
+        delete admx[path];
+    });
+
+    return saveAdmxToLocalStorage(admx);
+}
+
+    return { initAdmxStorage, getAdmxFromLocalStorage, saveAdmxToLocalStorage, getAdmxEntriesByPaths, upsertAdmxEntries, removeAdmxEntriesByPaths };
 });

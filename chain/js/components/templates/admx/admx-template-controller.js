@@ -8,7 +8,7 @@ define([
     './admx-storage-state'
 ], function(__dep0, __dep1, __dep2, __dep3, __dep4, __dep5, __dep6) {
 var API = __dep0;
-var { upsertAdmxEntries } = __dep1;
+var { upsertAdmxEntries, removeAdmxEntriesByPaths } = __dep1;
 var { ADMX_DEFAULT_STATE } = __dep2;
 var { normalizeAdmxState, getDefaultControlValue } = __dep3;
 var { parseAdmxCurrentValue, buildAdmxSetValue } = __dep4;
@@ -54,10 +54,16 @@ function setupAdmxTemplateController({
     const btnApply = headerEl?.querySelector('.admx__btn-apply') ?? null;
     const btnCancel = headerEl?.querySelector('.admx__btn-cancel') ?? null;
     const cleanups = [];
+    const policyStoragePaths = [
+        policyValueEntry?.storagePath ?? null,
+        ...controlEntries.map(({ storagePath }) => storagePath),
+    ].filter(Boolean);
 
     let initialFormSnapshot = null;
     let isLoading = true;
     let isSaving = false;
+    let currentPersistedEntries = persistedEntries;
+    let hasLocalPersistedEntries = hasPersistedEntries;
 
     const setHeaderAdmxButtonsActive = (active) => {
         const canUseButtons = !isLoading && !isSaving && initialFormSnapshot !== null;
@@ -74,7 +80,7 @@ function setupAdmxTemplateController({
     const restorePersistedState = () => {
         restorePersistedAdmxValues({
             rootElement: admxTemplateElement,
-            persistedEntries,
+            persistedEntries: currentPersistedEntries,
             policyValueEntry,
             controlEntries,
         });
@@ -156,6 +162,7 @@ function setupAdmxTemplateController({
             setHeaderAdmxButtonsActive(false);
 
             const currentNameGpt = await API.waitForNameGpt();
+            const selectedState = getSelectedAdmxState(admxTemplateElement);
 
             if (!currentNameGpt) {
                 throw new Error('GPO file system path is not available.');
@@ -172,20 +179,56 @@ function setupAdmxTemplateController({
                     return;
                 }
 
+                if (selectedState === ADMX_DEFAULT_STATE) {
+                    console.log('[ADMX] API.deletePolicy payload:', {
+                        nameGpt: currentNameGpt,
+                        target: effectiveTarget,
+                        path: controlPath,
+                    });
+
+                    const deleteResult = await API.deletePolicy(currentNameGpt, effectiveTarget, controlPath);
+                    console.log('[ADMX] API.deletePolicy response:', deleteResult);
+                    return;
+                }
+
                 const controlElement = getControlElementByStoragePath(admxTemplateElement, controlEntry.storagePath);
                 const controlValue = readControlValue(controlElement, controlEntry.metadata);
-                const setValue = buildAdmxSetValue(getSelectedAdmxState(admxTemplateElement), controlValue);
+                const setValue = buildAdmxSetValue(selectedState, controlValue);
 
                 console.log('[ADMX] API.set payload:', {
                     nameGpt: currentNameGpt,
                     target: effectiveTarget,
                     path: controlPath,
                     value: setValue,
+                    controlValue: controlValue,
+                    controlElement: controlElement,
                 });
 
                 const setResult = await API.set(currentNameGpt, effectiveTarget, controlPath, setValue);
                 console.log('[ADMX] API.set response:', setResult);
             }));
+
+            if (selectedState === ADMX_DEFAULT_STATE) {
+                const didRemovePersistedEntries = removeAdmxEntriesByPaths(policyStoragePaths);
+
+                if (!didRemovePersistedEntries) {
+                    throw new Error('Failed to remove persisted ADMX entries.');
+                }
+
+                currentPersistedEntries = {};
+                hasLocalPersistedEntries = false;
+
+                applyDefaultValuesToAdmxForm({
+                    rootElement: admxTemplateElement,
+                    controlEntries,
+                });
+
+                initialFormSnapshot = buildAdmxFormSnapshot({
+                    rootElement: admxTemplateElement,
+                    controlEntries,
+                });
+                return;
+            }
 
             const admxEntries = buildPersistedAdmxEntries({
                 rootElement: admxTemplateElement,
@@ -263,7 +306,7 @@ function setupAdmxTemplateController({
             const hasAnyData = results.some(({ parsedValue }) => parsedValue?.hasData);
 
             if (!hasAnyData) {
-                if (hasPersistedEntries) {
+                if (hasLocalPersistedEntries) {
                     console.log('[ADMX] API returned empty values. Restoring persisted local state.');
                     restorePersistedState();
                     return;
