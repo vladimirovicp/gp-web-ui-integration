@@ -29,3 +29,8 @@
     font-weight: 400;
         margin: 0;
 }
+
+.gp__footer
+ {
+   gap: 10px; 
+ }

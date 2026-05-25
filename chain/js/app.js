@@ -18,7 +18,6 @@ define([
     './components/tree-view/tree-view-list',
     './util/element-creator',
     './util/mainLocalStorage/shortcuts',
-    './util/mainLocalStorage/admx',
     './util/API'
 ], function(
     headerModule,
@@ -40,7 +39,6 @@ define([
     treeViewListModule,
     elementCreatorModule,
     shortcutsStorageModule,
-    admxStorageModule,
     APIModule
 ) {
     var renderHeader = headerModule.renderHeader;
@@ -64,7 +62,6 @@ define([
     var setFolderOpenedState = treeViewListModule.setFolderOpenedState;
     var createElement = elementCreatorModule.createElement;
     var initShortcutsStorage = shortcutsStorageModule.initShortcutsStorage;
-    var initAdmxStorage = admxStorageModule.initAdmxStorage;
 
     function createTreeViewState() {
         return {
@@ -435,7 +432,6 @@ define([
         }
 
         initShortcutsStorage();
-        initAdmxStorage();
 
         var treeViewState = createTreeViewState();
         var header = renderHeader(container);

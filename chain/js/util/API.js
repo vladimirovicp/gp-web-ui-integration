@@ -237,6 +237,37 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
     }
 
     /**
+     * Удаляет значение политики по указанным параметрам.
+     *
+     * @param {string} nameGpt — файловый путь GPO
+     * @param {string} target — область применения политики (Machine/User)
+     * @param {string} path — путь политики
+     * @returns {Promise<*>} — промис с результатом удаления
+     */
+    function deletePolicy(nameGpt, target, path) {
+        return new Promise(function(resolve, reject) {
+            rpc.command({
+                entity: 'gpo',
+                method: 'delete_policy',
+                args: [
+                    nameGpt || '',
+                    target || '',
+                    path || '/'
+                ],
+                options: {
+                    version: IPA.api_version
+                },
+                on_success: function(data) {
+                    resolve(normalizeSuccessResponse(data));
+                },
+                on_error: function(xhr, text_status, error_thrown) {
+                    reject(error_thrown || new Error('Failed to delete policy'));
+                }
+            }).execute();
+        });
+    }
+
+    /**
      * Публичный API модуля.
      *
      * initNameGpt     — инициализация nameGpt (вызывается один раз при старте)
@@ -245,6 +276,7 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
      * getPolicy       — загрузка дерева политик по пути
      * get_current_value — получение текущего значения политики
      * set             — установка значения политики
+     * deletePolicy    — удаление политики
      */
     return {
         initNameGpt: initNameGpt,
@@ -252,6 +284,7 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
         getNameGpt: getNameGpt,
         getPolicy: getPolicy,
         get_current_value: get_current_value,
-        set: set
+        set: set,
+        deletePolicy: deletePolicy
     };
 });
