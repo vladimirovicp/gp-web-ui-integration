@@ -2,13 +2,6 @@ define(['../../util/element-creator'], function(__dep0) {
 var { createElement } = __dep0;
 
 
-const HELP_PLACEHOLDER = [
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-].join('\n');
-
 function renderChildRow(item, onItemClick) {
     const row = createElement('span', {
         className: 'workspace-list-item',
@@ -44,13 +37,9 @@ function renderChildRow(item, onItemClick) {
 }
 
 function renderHelpBlock({ help = undefined, isOpen = false } = {}) {
-    if (help === '') {
+    if (!help) {
         return null;
     }
-
-    const helpText = help === undefined
-        ? HELP_PLACEHOLDER
-        : help;
 
     return createElement('div', {
         className: ['gp__list-children-help', isOpen ? 'is-open' : null],
@@ -61,7 +50,7 @@ function renderHelpBlock({ help = undefined, isOpen = false } = {}) {
             }),
             createElement('div', {
                 className: 'content',
-                text: helpText,
+                text: help,
             }),
         ],
     });

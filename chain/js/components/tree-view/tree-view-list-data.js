@@ -14,7 +14,7 @@ function buildTreeViewList(policyData = {}) {
             type: 'folder',
             opened: true,
             icon: null,
-            help: 'Local group policies templates',
+            help: t('policies.localGroupPolicies'),
           
             children: [
                 {
@@ -22,7 +22,7 @@ function buildTreeViewList(policyData = {}) {
                     type: 'folder',
                     opened: true,
                     icon: 'ico-computer',
-                    help: 'Machine level policies',
+                    help: t('policies.machineLevelPolicies'),
                     children: [
                         {
                             title: t('policies.adminTemplates'),
@@ -30,27 +30,27 @@ function buildTreeViewList(policyData = {}) {
                             opened: true,
                             icon: 'ico-folder',
                             children: machineCategories,
-                            help: 'Machine administrative templates',
+                            help: t('policies.machineAdminTemplates'),
                         },
                         {
                             title: t('preferences.title'),
                             type: 'folder',
                             opened: false,
                             icon: 'ico-folder',
-                            help: 'Preferences policies.',
+                            help: t('preferences.description'),
                             children: [
                                 {
-                                    title: t('preferences.systemSettings'), //'Настройки системы',
+                                    title: t('preferences.systemSettings'),
                                     type: 'folder',
                                     opened: false,
                                     icon: 'ico-folder',
                                     children: treepreferences,
-                                    help: 'Policies that set system settings.',
+                                    help: t('preferences.systemSettingsDesc'),
                                 }
                             ]
                         },
                         {
-                            title: 'Настройки системы',
+                            title: t('preferences.systemSettings'),
                             type: 'folder',
                             opened: false,
                             icon: 'ico-folder',
@@ -74,7 +74,7 @@ function buildTreeViewList(policyData = {}) {
                     type: 'folder',
                     opened: false,
                     icon: 'ico-user',
-                    help: 'User level policies',
+                    help: t('policies.userLevelPolicies'),
                     children: [
                         {
                             title: t('policies.adminTemplates'),
@@ -84,13 +84,13 @@ function buildTreeViewList(policyData = {}) {
                             children: userCategories
                         },
                         {
-                            title: 'Настройки',
+                            title: t('preferences.title'),
                             type: 'folder',
                             opened: false,
                             icon: 'ico-folder'
                         },
                         {
-                            title: 'Настройки системы',
+                            title: t('preferences.systemSettings'),
                             type: 'folder',
                             opened: false,
                             icon: 'ico-folder'
