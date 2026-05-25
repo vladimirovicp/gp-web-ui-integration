@@ -1,5 +1,5 @@
 define(['./admx-constants', './admx-policy-normalizers'], function(__dep0, __dep1) {
-var { ADMX_DEFAULT_STATE } = __dep0;
+var { ADMX_DEFAULT_STATE, ADMX_DISABLED_VALUE_MARKER } = __dep0;
 var { isPlainObject, normalizeAdmxState } = __dep1;
 
 function unwrapCurrentValue(rawValue) {
@@ -32,13 +32,22 @@ function parseStringValueAsAdmxState(stringValue) {
     }
 
     const str = String(stringValue);
+
+    if (str === ADMX_DISABLED_VALUE_MARKER) {
+        return {
+            hasData: true,
+            state: 'disabled',
+            value: null,
+        };
+    }
+
     const delimiterIndex = str.indexOf(';');
 
     if (delimiterIndex === -1) {
         return {
             hasData: true,
-            state: normalizeAdmxState(str),
-            value: '',
+            state: 'enabled',
+            value: str,
         };
     }
 
@@ -84,8 +93,6 @@ function parseAdmxCurrentValue(rawValue) {
         };
     }
 
-    console.log('normalizedRawValue = ', normalizedRawValue);
-
     return parseStringValueAsAdmxState(normalizedRawValue);
 }
 
@@ -95,7 +102,15 @@ function buildAdmxSetValue(state, fieldValue) {
         ? ''
         : String(fieldValue);
 
-    return `${normalizedState};${normalizedValue}`;
+    if (normalizedState === 'disabled') {
+        return ADMX_DISABLED_VALUE_MARKER;
+    }
+
+    if (normalizedState === 'enabled') {
+        return normalizedValue;
+    }
+
+    return '';
 }
 
     return {

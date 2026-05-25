@@ -194,6 +194,17 @@ function setupAdmxTemplateController({
                 return;
             }
 
+            if (selectedState === 'disabled') {
+                setSelectedAdmxState(admxTemplateElement, selectedState);
+
+                controlEntries.forEach(({ storagePath, metadata }) => {
+                    const controlElement = getControlElementByStoragePath(admxTemplateElement, storagePath);
+                    applyControlValue(controlElement, metadata, getDefaultControlValue(metadata));
+                });
+
+                syncControlsWithPolicyState(admxTemplateElement);
+            }
+
             initialFormSnapshot = buildAdmxFormSnapshot({
                 rootElement: admxTemplateElement,
                 controlEntries,
@@ -252,7 +263,6 @@ function setupAdmxTemplateController({
                 };
             }));
 
-            const firstValue = results[0]?.parsedValue ?? null;
             const hasAnyData = results.some(({ parsedValue }) => parsedValue?.hasData);
 
             if (!hasAnyData) {
@@ -263,13 +273,19 @@ function setupAdmxTemplateController({
                 return;
             }
 
-            setSelectedAdmxState(admxTemplateElement, normalizeAdmxState(firstValue?.state));
+            const firstValueWithData = results.find(({ parsedValue }) => parsedValue?.hasData)?.parsedValue ?? null;
+            setSelectedAdmxState(admxTemplateElement, normalizeAdmxState(firstValueWithData?.state));
+            const loadedState = getSelectedAdmxState(admxTemplateElement);
 
             results.forEach(({ controlEntry, parsedValue }) => {
                 const controlElement = getControlElementByStoragePath(admxTemplateElement, controlEntry.storagePath);
-                const nextValue = parsedValue?.hasData
-                    ? parsedValue.value
-                    : getDefaultControlValue(controlEntry.metadata);
+                const nextValue = loadedState === 'disabled'
+                    ? getDefaultControlValue(controlEntry.metadata)
+                    : (
+                        parsedValue?.hasData
+                            ? parsedValue.value
+                            : getDefaultControlValue(controlEntry.metadata)
+                    );
 
                 applyControlValue(controlElement, controlEntry.metadata, nextValue);
             });
