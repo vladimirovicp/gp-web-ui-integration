@@ -1,5 +1,6 @@
-define(['../../util/element-creator'], function(__dep0) {
+define(['../../util/element-creator', '../../locales/translations'], function(__dep0, __dep1) {
 var { createElement } = __dep0;
+var { t } = __dep1;
 
 
 function renderChildRow(item, onItemClick) {
@@ -46,7 +47,7 @@ function renderHelpBlock({ help = undefined, isOpen = false } = {}) {
         children: [
             createElement('div', {
                 className: 'title',
-                text: 'Помощь:',
+                text: t('common.help'),
             }),
             createElement('div', {
                 className: 'content',

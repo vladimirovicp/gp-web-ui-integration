@@ -1,5 +1,13 @@
 define([], function() {
   return {
+    // Common texts
+    common: {
+      help: 'Help:',
+      description: 'Description:',
+      options: 'Options:',
+      comment: 'Comment:'
+    },
+
     // Политики
     policies: {
       localGroupPolicy: '[Local Group Policy]',
@@ -10,6 +18,12 @@ define([], function() {
       adminTemplates: 'Administrative Templates',
       machineAdminTemplates: 'Machine administrative templates',
       localGroupPolicies: 'Local group policies templates',
+      policy: 'Policy:',
+      policyState: 'Policy State',
+      notConfigured: 'Not Configured',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      supportedOn: 'Supported on:'
     },
 
     // Настройки (Preferences)

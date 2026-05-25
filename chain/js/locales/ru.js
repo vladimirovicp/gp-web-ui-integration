@@ -1,5 +1,13 @@
 define([], function() {
   return {
+    // Общие тексты
+    common: {
+      help: 'Помощь:',
+      description: 'Описание:',
+      options: 'Опции:',
+      comment: 'Комментарий:'
+    },
+
     // Политики
     policies: {
       localGroupPolicy: '[Локальная групповая политика]',
@@ -10,6 +18,12 @@ define([], function() {
       adminTemplates: 'Административные шаблоны',
       machineAdminTemplates: 'Административные шаблоны компьютера',
       localGroupPolicies: 'Шаблон локальных групповых политик',
+      policy: 'Политика:',
+      policyState: 'Состояние политики:',
+      notConfigured: 'Не сконфигурировано',
+      enabled: 'Включено',
+      disabled: 'Отключено',
+      supportedOn: 'Поддерживается на:',
     },
 
     // Настройки (Preferences)
