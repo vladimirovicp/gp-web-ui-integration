@@ -45,6 +45,20 @@ define([], function() {
     treeView: {
       loadingPolicies: 'Loading policies...',
       unableToLoadPolicies: 'Unable to load policies.'
-    }
+    },
+
+    header: {
+      create: 'Create',
+      edit: 'Edit',
+      delete: 'Delete',
+      apply: 'Apply',
+      cancel: 'Cancel',
+      information: 'Information'
+    },
+
+    systemSettings: {
+      scripts: 'Scripts'
+    },
+
   };
 });

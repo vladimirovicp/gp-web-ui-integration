@@ -45,6 +45,19 @@ define([], function() {
     treeView: {
       loadingPolicies: 'Loading policies...',
       unableToLoadPolicies: 'Не удалось загрузить политики.'
-    }
+    },
+
+    header: {
+      create: 'Создать',
+      edit: 'Изменить',
+      delete: 'Удалить',
+      apply: 'Применить',
+      cancel: 'Отмена',
+      information: 'Сведения'
+    },
+
+    systemSettings: {
+      scripts: 'Скрипты'
+    },
   };
 });

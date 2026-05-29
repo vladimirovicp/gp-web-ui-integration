@@ -4,7 +4,7 @@ var ru = __dep1;
 
 
 const translations = { en, ru };
-let currentLang = 'ru';
+let currentLang = 'en';
 
 function t(key) {
   const keys = key.split('.');
