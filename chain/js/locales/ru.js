@@ -57,6 +57,7 @@ define([], function() {
     },
 
     systemSettings: {
+      systemSettings:'Настройки Системы',
       scripts: 'Скрипты'
     },
   };

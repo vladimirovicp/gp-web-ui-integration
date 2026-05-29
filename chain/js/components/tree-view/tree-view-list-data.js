@@ -54,6 +54,7 @@ function buildTreeViewList(policyData = {}) {
                             type: 'folder',
                             opened: false,
                             icon: 'ico-folder',
+                            help: t('systemSettings.systemSettings'),
                             children: [
                                 {
                                     title: t('systemSettings.scripts'),
@@ -94,6 +95,7 @@ function buildTreeViewList(policyData = {}) {
                             type: 'folder',
                             opened: false,
                             icon: 'ico-folder',
+                            help: t('systemSettings.systemSettings'),
                             children: [
                                 {
                                     title: t('systemSettings.scripts'),
