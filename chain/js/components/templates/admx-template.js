@@ -15,9 +15,9 @@ var { createElement } = __dep0;
 var { t } = __dep1;
 var { normalizePolicyEntries } = __dep2;
 var { formatExplainText, renderAdmxControlRow } = __dep3;
-var { setupAdmxTemplateController } = __dep4;
+var { setupAdmxTemplateController, prepareAdmxInitialState } = __dep4;
 
-function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null } = {}) {
+async function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null, isCurrent = null } = {}) {
     const effectiveTarget = item?.target ?? item?.policyData?.header?.class ?? item?.header?.class ?? '';
 
     const policyData = item.policyData ?? {};
@@ -186,6 +186,16 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
 
     const admxTemplateElement = admxTemplate.getElement();
     const statePolicyElement = admxTemplateElement.querySelector('.gp__admx-state-policy');
+    const initialFormSnapshot = await prepareAdmxInitialState({
+        rootElement: admxTemplateElement,
+        controlEntries,
+        effectiveTarget,
+    });
+
+    if (typeof isCurrent === 'function' && !isCurrent()) {
+        admxTemplate.cleanup = () => {};
+        return admxTemplate;
+    }
 
     setupAdmxTemplateController({
         admxTemplate,
@@ -195,6 +205,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
         effectiveTarget,
         controlEntries,
         policyValueEntry,
+        initialFormSnapshot,
     });
 
     return admxTemplate;

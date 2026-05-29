@@ -71,6 +71,7 @@ define([
             header: null,
             isHelpOpen: false,
             currentViewCleanup: null,
+            renderRequestId: 0,
             treeData: [],
             treeItemElements: new WeakMap(),
             treeListItemElements: new WeakMap(),
@@ -293,7 +294,9 @@ define([
                 return this.setHelpOpen(!this.isHelpOpen);
             },
 
-            renderSelectedItem: function(item, element) {
+            renderSelectedItem: async function(item, element) {
+                var renderRequestId = ++this.renderRequestId;
+
                 this.cleanupCurrentView();
 
                 if (this.workspace) {
@@ -330,11 +333,16 @@ define([
                             templateResult = renderDefaultTemplate();
                         }
                     } else if (item.template === 'admx') {
-                        templateResult = renderAdmxTemplate({
+                        templateResult = await renderAdmxTemplate({
                             isHelpOpen: this.isHelpOpen,
                             header: this.header,
                             item: item,
-                            admxTreePath: item ? item.admxTreePath : null
+                            admxTreePath: item ? item.admxTreePath : null,
+                            isCurrent: function() {
+                                return renderRequestId === this.renderRequestId
+                                    && this.selectedItem
+                                    && this.selectedItem.item === item;
+                            }.bind(this)
                         });
                     } else if (item.template !== 'preferences') {
                         templateResult = renderDefaultTemplate();
@@ -357,6 +365,13 @@ define([
                     }
 
                     renderedWorkspaceView = templateResult;
+                }
+
+                if (renderRequestId !== this.renderRequestId) {
+                    if (templateResult && typeof templateResult.cleanup === 'function') {
+                        templateResult.cleanup();
+                    }
+                    return;
                 }
 
                 if (this.workspace && renderedWorkspaceView) {
