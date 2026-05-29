@@ -1,5 +1,6 @@
-define(['../../util/element-creator'], function(__dep0) {
+define(['../../util/element-creator', '../../locales/translations'], function(__dep0, __dep1) {
 var { createElement } = __dep0;
+var { t } = __dep1;
 
 
 function renderHeader(container) {
@@ -17,15 +18,15 @@ function renderHeader(container) {
                 children: [
                     createElement('button', {
                         className: ['button', 'preferences__btn-create'],
-                        text: 'Создать'
+                        text: t('header.create')
                     }),
                     createElement('button', {
                         className: ['button', 'preferences__btn-edit'],
-                        text: 'Изменить'
+                        text: t('header.edit')
                     }),
                     createElement('button', {
                         className: ['button','preferences__btn-delete'],
-                        text: 'Удалить'
+                        text: t('header.delete')
                     })
                 ]
             }),
@@ -34,11 +35,11 @@ function renderHeader(container) {
                 children: [
                     createElement('button', {
                         className: ['button', 'admx__btn-apply'],
-                        text: 'Применить'
+                        text: t('header.apply')
                     }),
                     createElement('button', {
                         className: ['button', 'admx__btn-cancel'],
-                        text: 'Отмена'
+                        text: t('header.cancel')
                     })
                 ]
             }),
@@ -47,7 +48,7 @@ function renderHeader(container) {
                 children: [
                     createElement('button', {
                         className: ['button', 'btn-information'],
-                        text: 'Сведения'
+                        text: t('header.information')
                     })
                 ]
             })

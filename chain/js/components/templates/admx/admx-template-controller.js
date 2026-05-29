@@ -37,18 +37,17 @@ function setupAdmxTemplateController({
     header = null,
     effectiveTarget = '',
     controlEntries = [],
+    initialFormSnapshot = null,
 } = {}) {
     const headerEl = header?.getElement?.();
     const btnApply = headerEl?.querySelector('.admx__btn-apply') ?? null;
     const btnCancel = headerEl?.querySelector('.admx__btn-cancel') ?? null;
     const cleanups = [];
 
-    let initialFormSnapshot = null;
-    let isLoading = true;
     let isSaving = false;
 
     const setHeaderAdmxButtonsActive = (active) => {
-        const canUseButtons = !isLoading && !isSaving && initialFormSnapshot !== null;
+        const canUseButtons = !isSaving && initialFormSnapshot !== null;
 
         if (btnApply) {
             btnApply.classList.toggle('active', canUseButtons && active);
@@ -76,7 +75,7 @@ function setupAdmxTemplateController({
     setHeaderAdmxButtonsActive(false);
 
     const handleStatePolicyChange = (event) => {
-        if (isLoading || isSaving) {
+        if (isSaving) {
             return;
         }
 
@@ -95,7 +94,7 @@ function setupAdmxTemplateController({
     };
 
     const handleControlsChange = (event) => {
-        if (isLoading || isSaving) {
+        if (isSaving) {
             return;
         }
 
@@ -113,7 +112,7 @@ function setupAdmxTemplateController({
     };
 
     const handleCancel = () => {
-        if (!btnCancel?.classList.contains('active') || initialFormSnapshot === null || isLoading || isSaving) {
+        if (!btnCancel?.classList.contains('active') || initialFormSnapshot === null || isSaving) {
             return;
         }
 
@@ -126,7 +125,7 @@ function setupAdmxTemplateController({
     };
 
     const handleApply = async () => {
-        if (!btnApply?.classList.contains('active') || isLoading || isSaving) {
+        if (!btnApply?.classList.contains('active') || isSaving) {
             return;
         }
 
@@ -218,102 +217,13 @@ function setupAdmxTemplateController({
         }
     };
 
-    const loadCurrentAdmxValues = async () => {
-        try {
-            const currentNameGpt = await API.waitForNameGpt();
-
-            if (!currentNameGpt || !effectiveTarget) {
-                applyDefaultValuesToAdmxForm({
-                    rootElement: admxTemplateElement,
-                    controlEntries,
-                });
-                return;
-            }
-
-            const results = await Promise.all(controlEntries.map(async (controlEntry) => {
-                const controlPath = controlEntry.storagePath || controlEntry.policyPath;
-
-                if (!controlPath) {
-                    return {
-                        controlEntry,
-                        parsedValue: {
-                            hasData: false,
-                            state: ADMX_DEFAULT_STATE,
-                            value: null,
-                        },
-                    };
-                }
-
-                console.log('[ADMX] API.get_current_value payload:', {
-                    nameGpt: currentNameGpt,
-                    target: effectiveTarget,
-                    path: controlPath,
-                });
-
-                const rawValue = await API.get_current_value(currentNameGpt, effectiveTarget, controlPath);
-
-                console.log('[ADMX] API.get_current_value result:', {
-                    path: controlPath,
-                    result: rawValue,
-                });
-
-                return {
-                    controlEntry,
-                    parsedValue: parseAdmxCurrentValue(rawValue),
-                };
-            }));
-
-            const hasAnyData = results.some(({ parsedValue }) => parsedValue?.hasData);
-
-            if (!hasAnyData) {
-                applyDefaultValuesToAdmxForm({
-                    rootElement: admxTemplateElement,
-                    controlEntries,
-                });
-                return;
-            }
-
-            const firstValueWithData = results.find(({ parsedValue }) => parsedValue?.hasData)?.parsedValue ?? null;
-            setSelectedAdmxState(admxTemplateElement, normalizeAdmxState(firstValueWithData?.state));
-            const loadedState = getSelectedAdmxState(admxTemplateElement);
-
-            results.forEach(({ controlEntry, parsedValue }) => {
-                const controlElement = getControlElementByStoragePath(admxTemplateElement, controlEntry.storagePath);
-                const nextValue = loadedState === 'disabled'
-                    ? getDefaultControlValue(controlEntry.metadata)
-                    : (
-                        parsedValue?.hasData
-                            ? parsedValue.value
-                            : getDefaultControlValue(controlEntry.metadata)
-                    );
-
-                applyControlValue(controlElement, controlEntry.metadata, nextValue);
-            });
-
-            syncControlsWithPolicyState(admxTemplateElement);
-        } catch (error) {
-            console.error('[ADMX] Failed to load current values.', error);
-            applyDefaultValuesToAdmxForm({
-                rootElement: admxTemplateElement,
-                controlEntries,
-            });
-        } finally {
-            isLoading = false;
-            initialFormSnapshot = buildAdmxFormSnapshot({
-                rootElement: admxTemplateElement,
-                controlEntries,
-            });
-            setHeaderAdmxButtonsActive(false);
-        }
-    };
-
     addManagedEventListener(cleanups, statePolicyElement, 'change', handleStatePolicyChange);
     addManagedEventListener(cleanups, admxTemplateElement, 'change', handleControlsChange);
     addManagedEventListener(cleanups, admxTemplateElement, 'input', handleControlsChange);
     addManagedEventListener(cleanups, btnCancel, 'click', handleCancel);
     addManagedEventListener(cleanups, btnApply, 'click', handleApply);
 
-    loadCurrentAdmxValues();
+    setHeaderAdmxButtonsActive(false);
 
     let cleanedUp = false;
     admxTemplate.cleanup = () => {
@@ -336,5 +246,104 @@ function setupAdmxTemplateController({
     return admxTemplate;
 }
 
-    return { setupAdmxTemplateController };
+async function prepareAdmxInitialState({
+    rootElement,
+    controlEntries = [],
+    effectiveTarget = '',
+} = {}) {
+    try {
+        const currentNameGpt = await API.waitForNameGpt();
+
+        if (!currentNameGpt || !effectiveTarget) {
+            applyDefaultValuesToAdmxForm({
+                rootElement,
+                controlEntries,
+            });
+
+            return buildAdmxFormSnapshot({
+                rootElement,
+                controlEntries,
+            });
+        }
+
+        const results = await Promise.all(controlEntries.map(async (controlEntry) => {
+            const controlPath = controlEntry.storagePath || controlEntry.policyPath;
+
+            if (!controlPath) {
+                return {
+                    controlEntry,
+                    parsedValue: {
+                        hasData: false,
+                        state: ADMX_DEFAULT_STATE,
+                        value: null,
+                    },
+                };
+            }
+
+            console.log('[ADMX] API.get_current_value payload:', {
+                nameGpt: currentNameGpt,
+                target: effectiveTarget,
+                path: controlPath,
+            });
+
+            const rawValue = await API.get_current_value(currentNameGpt, effectiveTarget, controlPath);
+
+            console.log('[ADMX] API.get_current_value result:', {
+                path: controlPath,
+                result: rawValue,
+            });
+
+            return {
+                controlEntry,
+                parsedValue: parseAdmxCurrentValue(rawValue),
+            };
+        }));
+
+        const hasAnyData = results.some(({ parsedValue }) => parsedValue?.hasData);
+
+        if (!hasAnyData) {
+            applyDefaultValuesToAdmxForm({
+                rootElement,
+                controlEntries,
+            });
+
+            return buildAdmxFormSnapshot({
+                rootElement,
+                controlEntries,
+            });
+        }
+
+        const firstValueWithData = results.find(({ parsedValue }) => parsedValue?.hasData)?.parsedValue ?? null;
+        setSelectedAdmxState(rootElement, normalizeAdmxState(firstValueWithData?.state));
+        const loadedState = getSelectedAdmxState(rootElement);
+
+        results.forEach(({ controlEntry, parsedValue }) => {
+            const controlElement = getControlElementByStoragePath(rootElement, controlEntry.storagePath);
+            const nextValue = loadedState === 'disabled'
+                ? getDefaultControlValue(controlEntry.metadata)
+                : (
+                    parsedValue?.hasData
+                        ? parsedValue.value
+                        : getDefaultControlValue(controlEntry.metadata)
+                );
+
+            applyControlValue(controlElement, controlEntry.metadata, nextValue);
+        });
+
+        syncControlsWithPolicyState(rootElement);
+    } catch (error) {
+        console.error('[ADMX] Failed to load current values.', error);
+        applyDefaultValuesToAdmxForm({
+            rootElement,
+            controlEntries,
+        });
+    }
+
+    return buildAdmxFormSnapshot({
+        rootElement,
+        controlEntries,
+    });
+}
+
+    return { setupAdmxTemplateController, prepareAdmxInitialState };
 });

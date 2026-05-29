@@ -6,16 +6,18 @@
  */
 define([
     '../../util/element-creator',
+    '../../locales/translations',
     './admx/admx-policy-normalizers',
     './admx/admx-controls-renderer',
     './admx/admx-template-controller',
-], function(__dep0, __dep1, __dep2, __dep3) {
+], function(__dep0, __dep1, __dep2, __dep3, __dep4) {
 var { createElement } = __dep0;
-var { normalizePolicyEntries } = __dep1;
-var { formatExplainText, renderAdmxControlRow } = __dep2;
-var { setupAdmxTemplateController } = __dep3;
+var { t } = __dep1;
+var { normalizePolicyEntries } = __dep2;
+var { formatExplainText, renderAdmxControlRow } = __dep3;
+var { setupAdmxTemplateController, prepareAdmxInitialState } = __dep4;
 
-function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null } = {}) {
+async function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null, header = null, isCurrent = null } = {}) {
     const effectiveTarget = item?.target ?? item?.policyData?.header?.class ?? item?.header?.class ?? '';
 
     const policyData = item.policyData ?? {};
@@ -41,7 +43,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                             createElement('div', {
                                 className: 'title',
                                 children: [
-                                    'Политика: ',
+                                    t('policies.policy') + ' ',
                                     createElement('span', {
                                         className: 'title__name',
                                         text: policyHeader.displayName ?? ''
@@ -50,7 +52,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                             }),
                             createElement('div', {
                                 className: 'gp__admx-state-policy-title',
-                                text: 'Состояние политики:'
+                                text: t('policies.policyState')
                             }),
                             createElement('div', {
                                 className: 'gp__admx-state-policy',
@@ -72,7 +74,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                                                 }
                                             }),
                                             createElement('span', {
-                                                text: 'Не сконфигурировано'
+                                                text: t('policies.notConfigured')
                                             })
                                         ]
                                     }),
@@ -87,7 +89,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                                                 }
                                             }),
                                             createElement('span', {
-                                                text: 'Включено'
+                                                text: t('policies.enabled')
                                             })
                                         ]
                                     }),
@@ -102,7 +104,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                                                 }
                                             }),
                                             createElement('span', {
-                                                text: 'Отключено'
+                                                text: t('policies.disabled')
                                             })
                                         ]
                                     })
@@ -121,11 +123,11 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                                 children: [
                                     createElement('div', {
                                         className: 'gp__admx-description',
-                                        text: 'Описание'
+                                        text: t('common.description')
                                     }),
                                     createElement('div', {
                                         className: 'gp__admx-options',
-                                        text: 'Опции'
+                                        text: t('common.options')
                                     })
                                 ]
                             }),
@@ -142,7 +144,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                         children: [
                             createElement('div', {
                                 className: 'title',
-                                text: 'Поддерживается на:'
+                                text: t('policies.supportedOn')
                             }),
                             createElement('div', {
                                 className: 'gp__admx-content',
@@ -155,7 +157,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                         children: [
                             createElement('div', {
                                 className: 'title',
-                                text: 'Комментарий:'
+                                text: t('common.comment')
                             }),
                             createElement('textarea', {
                                 attrs: {
@@ -169,7 +171,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
                         children: [
                             createElement('div', {
                                 className: 'title',
-                                text: 'Помощь:'
+                                text: t('common.help')
                             }),
                             createElement('div', {
                                 className: 'gp__admx-content',
@@ -184,6 +186,16 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
 
     const admxTemplateElement = admxTemplate.getElement();
     const statePolicyElement = admxTemplateElement.querySelector('.gp__admx-state-policy');
+    const initialFormSnapshot = await prepareAdmxInitialState({
+        rootElement: admxTemplateElement,
+        controlEntries,
+        effectiveTarget,
+    });
+
+    if (typeof isCurrent === 'function' && !isCurrent()) {
+        admxTemplate.cleanup = () => {};
+        return admxTemplate;
+    }
 
     setupAdmxTemplateController({
         admxTemplate,
@@ -193,6 +205,7 @@ function renderAdmxTemplate({ isHelpOpen = false, item = {}, admxTreePath = null
         effectiveTarget,
         controlEntries,
         policyValueEntry,
+        initialFormSnapshot,
     });
 
     return admxTemplate;

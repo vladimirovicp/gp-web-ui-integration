@@ -54,6 +54,7 @@ function convertPolicyCategory(categoryNode, ctx = {}) {
         type: 'folder',
         opened: false,
         icon: 'ico-folder',
+        help: categoryNode.help,
         children: children.length > 0 ? children : undefined,
     };
 }

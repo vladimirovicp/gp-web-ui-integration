@@ -1,12 +1,13 @@
-define(['../../util/element-creator', './tree-view-list', './tree-view-list-data'], function(__dep0, __dep1, __dep2) {
+define(['../../util/element-creator', '../../locales/translations', './tree-view-list', './tree-view-list-data'], function(__dep0, __dep1, __dep2, __dep3) {
 var { createElement } = __dep0;
-var { renderTreeViewList } = __dep1;
-var { loadTreeViewList } = __dep2;
+var { t } = __dep1;
+var { renderTreeViewList } = __dep2;
+var { loadTreeViewList } = __dep3;
 
 
 const TREE_VIEW_MESSAGES = {
-    loading: 'Loading policies...',
-    error: 'Unable to load policies.',
+    loading: 'treeView.loadingPolicies',
+    error: 'treeView.unableToLoadPolicies',
 };
 
 function renderTreeViewStatus(type = 'loading') {
@@ -25,8 +26,8 @@ function renderTreeViewStatus(type = 'loading') {
     children.push(createElement('span', {
         className: 'tree-view__status-text',
         text: isError
-            ? TREE_VIEW_MESSAGES.error
-            : TREE_VIEW_MESSAGES.loading,
+            ? t(TREE_VIEW_MESSAGES.error)
+            : t(TREE_VIEW_MESSAGES.loading),
     }));
 
     return createElement('div', {

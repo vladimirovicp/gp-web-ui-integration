@@ -1,13 +1,7 @@
-define(['../../util/element-creator'], function(__dep0) {
+define(['../../util/element-creator', '../../locales/translations'], function(__dep0, __dep1) {
 var { createElement } = __dep0;
+var { t } = __dep1;
 
-
-const HELP_PLACEHOLDER = [
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-    'какой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, большекакой-то рандомный текст, не знаю о чем)  текста больше, больше',
-].join('\n');
 
 function renderChildRow(item, onItemClick) {
     const row = createElement('span', {
@@ -44,24 +38,20 @@ function renderChildRow(item, onItemClick) {
 }
 
 function renderHelpBlock({ help = undefined, isOpen = false } = {}) {
-    if (help === '') {
+    if (!help) {
         return null;
     }
-
-    const helpText = help === undefined
-        ? HELP_PLACEHOLDER
-        : help;
 
     return createElement('div', {
         className: ['gp__list-children-help', isOpen ? 'is-open' : null],
         children: [
             createElement('div', {
                 className: 'title',
-                text: 'Помощь:',
+                text: t('common.help'),
             }),
             createElement('div', {
                 className: 'content',
-                text: helpText,
+                text: help,
             }),
         ],
     });
