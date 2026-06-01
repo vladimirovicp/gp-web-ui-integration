@@ -119,7 +119,6 @@ function buildTreeViewList(policyData = {}) {
 
 async function loadTreeViewList() {
     var nameGpt = await API.waitForNameGpt();
-    console.log('[loadTreeViewList] nameGpt:', nameGpt);
 
     var policyData = await API.getPolicy('/');
 

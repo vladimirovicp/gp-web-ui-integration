@@ -239,7 +239,6 @@ define([
             }
 
             var policyName = selected[0];
-            //console.log('GPUI selected GPO:', policyName);
 
             var backdrop = $('<div class="modal-backdrop fade in"></div>');
             var modal = $(
