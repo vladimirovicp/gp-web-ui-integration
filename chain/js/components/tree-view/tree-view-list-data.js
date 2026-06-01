@@ -1,5 +1,6 @@
-define(['../../locales/translations', './tree-view-preferences', './policy-converter', '../../util/API'], function(t, __dep1, __dep2, API) {
+define(['../../locales/translations', './tree-view-preferences', './policy-converter', '../../util/API'], function(__dep0, __dep1, __dep2, API) {
 
+var { t } = __dep0;
 var { treepreferences } = __dep1;
 var { convertPolicySection } = __dep2;
 
