@@ -93,7 +93,6 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
                         reject(new Error("File System Path is empty."));
                         return;
                     }
-                    console.log("[API] nameGpt initialized:", _nameGpt);
                     resolve(_nameGpt);
                 },
                 on_error: function(xhr, text_status, error_thrown) {
@@ -210,9 +209,6 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
      * @returns {Promise<*>} — промис с результатом сохранения
      */
     function set(nameGpt, target, path, value) {
-
-        console.log('set: ', nameGpt, target, path, value)
-
         return new Promise(function(resolve, reject) {
             rpc.command({
                 entity: 'gpo',

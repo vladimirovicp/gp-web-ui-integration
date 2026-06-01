@@ -310,8 +310,6 @@ define([
                 var templateResult = null;
                 var renderedWorkspaceView = null;
 
-                console.log('item)', item);
-
                 if (item && item.type === 'folder') {
                     templateResult = renderFolderTemplate({
                         children: item.children || [],

@@ -152,32 +152,14 @@ function setupAdmxTemplateController({
                 }
 
                 if (selectedState === ADMX_DEFAULT_STATE) {
-                    console.log('[ADMX] API.deletePolicy payload:', {
-                        nameGpt: currentNameGpt,
-                        target: effectiveTarget,
-                        path: controlPath,
-                    });
-
                     const deleteResult = await API.deletePolicy(currentNameGpt, effectiveTarget, controlPath);
-                    console.log('[ADMX] API.deletePolicy response:', deleteResult);
                     return;
                 }
 
                 const controlElement = getControlElementByStoragePath(admxTemplateElement, controlEntry.storagePath);
                 const controlValue = readControlValue(controlElement, controlEntry.metadata);
                 const setValue = buildAdmxSetValue(selectedState, controlValue);
-
-                console.log('[ADMX] API.set payload:', {
-                    nameGpt: currentNameGpt,
-                    target: effectiveTarget,
-                    path: controlPath,
-                    value: setValue,
-                    controlValue: controlValue,
-                    controlElement: controlElement,
-                });
-
                 const setResult = await API.set(currentNameGpt, effectiveTarget, controlPath, setValue);
-                console.log('[ADMX] API.set response:', setResult);
             }));
 
             if (selectedState === ADMX_DEFAULT_STATE) {
@@ -280,18 +262,7 @@ async function prepareAdmxInitialState({
                 };
             }
 
-            console.log('[ADMX] API.get_current_value payload:', {
-                nameGpt: currentNameGpt,
-                target: effectiveTarget,
-                path: controlPath,
-            });
-
             const rawValue = await API.get_current_value(currentNameGpt, effectiveTarget, controlPath);
-
-            console.log('[ADMX] API.get_current_value result:', {
-                path: controlPath,
-                result: rawValue,
-            });
 
             return {
                 controlEntry,
