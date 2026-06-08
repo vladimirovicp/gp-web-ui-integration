@@ -40,6 +40,10 @@ function setupAdmxTemplateController({
     initialFormSnapshot = null,
 } = {}) {
     const headerEl = header?.getElement?.();
+    const controlActions = headerEl?.querySelector('.gp__control-actions');
+    if (controlActions) controlActions.style.display = 'flex';
+    const controlPref = headerEl?.querySelector('.gp__control');
+    if (controlPref) controlPref.style.display = 'none';
     const btnApply = headerEl?.querySelector('.admx__btn-apply') ?? null;
     const btnCancel = headerEl?.querySelector('.admx__btn-cancel') ?? null;
     const cleanups = [];
@@ -192,6 +196,7 @@ function setupAdmxTemplateController({
             });
         } catch (error) {
             console.error('[ADMX] Failed to apply policy values.', error);
+            alert('Failed to apply policy: ' + (error.message || error));
             return;
         } finally {
             isSaving = false;
@@ -223,6 +228,8 @@ function setupAdmxTemplateController({
         }
 
         setHeaderAdmxButtonsActive(false);
+
+        if (controlPref) controlPref.style.display = 'none';
     };
 
     return admxTemplate;

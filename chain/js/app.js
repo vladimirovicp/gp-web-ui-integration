@@ -18,6 +18,7 @@ define([
     './components/tree-view/tree-view-list',
     './util/element-creator',
     './util/mainLocalStorage/shortcuts',
+    './locales/translations',
     './util/API'
 ], function(
     headerModule,
@@ -39,6 +40,7 @@ define([
     treeViewListModule,
     elementCreatorModule,
     shortcutsStorageModule,
+    translationsModule,
     APIModule
 ) {
     var renderHeader = headerModule.renderHeader;
@@ -431,6 +433,14 @@ define([
         return document.getElementById(containerId);
     }
 
+    function mapBrowserToServiceLocale(browserLang) {
+        var lang = (browserLang || 'en').slice(0, 2).toLowerCase();
+        if (lang === 'ru') {
+            return 'ru-RU';
+        }
+        return 'en-US';
+    }
+
     function init(options) {
         var container = resolveContainer(options || {});
 
@@ -440,34 +450,39 @@ define([
 
         container.innerHTML = '';
 
-        if (APIModule && APIModule.initNameGpt) {
-            APIModule.initNameGpt((options || {}).policyName);
-        }
+        var policyName = (options || {}).policyName;
 
-        initShortcutsStorage();
+        APIModule.initNameGpt(policyName).then(function() {
+            var browserLang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+            var targetLocale = mapBrowserToServiceLocale(browserLang);
 
-        var treeViewState = createTreeViewState();
-        var header = renderHeader(container);
-        treeViewState.setHeader(header);
-        treeViewState.initHelpControls();
+            translationsModule.setLanguage(browserLang);
 
-        var renderedMain = renderMain(container, treeViewState);
-        renderFooter(container);
+            return APIModule.getLocale().then(function(serviceLocale) {
+                if (serviceLocale !== targetLocale) {
+                    return APIModule.setLocale(targetLocale);
+                }
+            });
+        }).then(function() {
+            initShortcutsStorage();
 
-        resizable(
-            renderedMain.divider.getElement(),
-            renderedMain.treeView.getElement(),
-            renderedMain.main.getElement()
-        );
+            var treeViewState = createTreeViewState();
+            var header = renderHeader(container);
+            treeViewState.setHeader(header);
+            treeViewState.initHelpControls();
+
+            var renderedMain = renderMain(container, treeViewState);
+            renderFooter(container);
+
+            resizable(
+                renderedMain.divider.getElement(),
+                renderedMain.treeView.getElement(),
+                renderedMain.main.getElement()
+            );
+        });
 
         return {
-            container: container,
-            treeViewState: treeViewState,
-            header: header,
-            main: renderedMain.main,
-            treeView: renderedMain.treeView,
-            divider: renderedMain.divider,
-            workspace: renderedMain.workspace
+            container: container
         };
     }
 

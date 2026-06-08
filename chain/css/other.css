@@ -25,6 +25,11 @@
     position: static;
 }
 
+.gp__admx-options input[type="checkbox"]{
+    opacity: unset;
+    position: static;
+}
+
 .gp__admx-state-policy label{
     font-weight: 400;
         margin: 0;
@@ -34,3 +39,24 @@
  {
    gap: 10px; 
  }
+
+
+ .gp__header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+.gp__control-actions {
+  margin-left: auto;
+  display: none;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.gp__control-separator {
+  width: 1px;
+  height: 24px;
+  background-color: #d1d1d1;
+}

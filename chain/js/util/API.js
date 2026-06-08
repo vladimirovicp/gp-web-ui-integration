@@ -14,6 +14,9 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
     /** @type {string|null} Кэшированный файловый путь GPO (например: \\example.test\SysVol\...\Policies\{GUID}) */
     var _nameGpt = null;
 
+    /** @type {string|null} Кэшированное имя политики (displayName) */
+    var _policyName = null;
+
     /** @type {Promise|null} Промис загрузки nameGpt. Позволяет нескольким компонентам ждать один и тот же запрос. */
     var _nameGptPromise = null;
 
@@ -72,6 +75,8 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
      * @returns {Promise<string|null>} — промис, который resolve'ится с путем GPO или null
      */
     function initNameGpt(policyName) {
+        _policyName = policyName || null;
+
         if (!policyName) {
             _nameGptPromise = Promise.resolve(null);
             return _nameGptPromise;
@@ -263,24 +268,51 @@ define(["freeipa/ipa", "freeipa/rpc"], function(IPA, rpc) {
         });
     }
 
-    /**
-     * Публичный API модуля.
-     *
-     * initNameGpt     — инициализация nameGpt (вызывается один раз при старте)
-     * waitForNameGpt  — асинхронное ожидание nameGpt (для async-функций)
-     * getNameGpt      — синхронное получение nameGpt (если уже загружен)
-     * getPolicy       — загрузка дерева политик по пути
-     * get_current_value — получение текущего значения политики
-     * set             — установка значения политики
-     * deletePolicy    — удаление политики
-     */
+    function getLocale() {
+        return new Promise(function(resolve) {
+            rpc.command({
+                entity: 'gpo',
+                method: 'get_locale',
+                args: [],
+                options: { version: IPA.api_version },
+                on_success: function(data) {
+                    var result = (data && data.result) ? data.result : {};
+                    resolve(result.result || 'en-US');
+                },
+                on_error: function() {
+                    resolve('en-US');
+                }
+            }).execute();
+        });
+    }
+
+    function setLocale(locale) {
+        return new Promise(function(resolve, reject) {
+            rpc.command({
+                entity: 'gpo',
+                method: 'set_locale',
+                args: [locale || 'en-US'],
+                options: { version: IPA.api_version },
+                on_success: function(data) { resolve(data); },
+                on_error: function(xhr, text_status, error_thrown) { reject(error_thrown || new Error('Failed to set locale')); }
+            }).execute();
+        });
+    }
+
+    function getPolicyName() {
+        return _policyName;
+    }
+
     return {
         initNameGpt: initNameGpt,
         waitForNameGpt: waitForNameGpt,
         getNameGpt: getNameGpt,
+        getPolicyName: getPolicyName,
         getPolicy: getPolicy,
         get_current_value: get_current_value,
         set: set,
-        deletePolicy: deletePolicy
+        deletePolicy: deletePolicy,
+        getLocale: getLocale,
+        setLocale: setLocale
     };
 });
