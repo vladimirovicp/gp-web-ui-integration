@@ -127,9 +127,10 @@
   margin-left: auto;
 }
 
-.packages-control__btn-edit {
+.gp__admx-info .packages-control__btn-edit {
   border: 1px solid #297FB0;
   padding: 0 12px;
+  width: unset;
   height: 25px;
   display: flex;
   justify-content: center;
@@ -144,18 +145,19 @@
   cursor: not-allowed;
 }
 
-.packages-control__package-item {
+.packages-control__modal-content .packages-control__package-item {
   border: 1px solid #d1d1d1;
   padding: 5px 10px;
   margin-bottom: 4px;
   cursor: pointer;
   font-size: 12px;
   border-radius: 2px;
-  min-height: 22px;
+  height: 32px;
 }
 .packages-control__package-item.selected {
-  background-color: #297FB0;
-  color: #fff;
+  /* background-color: #297FB0;
+  color: #fff; */
+  border: 1px solid #297FB0;
 }
 .packages-control__package-item:focus {
   outline: 1px solid #297FB0;
