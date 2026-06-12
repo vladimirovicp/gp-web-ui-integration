@@ -61,5 +61,12 @@ define([], function() {
       scripts: 'Scripts'
     },
 
+    policyChangedModal: {
+      title: 'Save settings dialog',
+      message: 'Policy settings were modified do you want to save them?',
+      no: 'No',
+      yes: 'Yes'
+    },
+
   };
 });
