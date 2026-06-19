@@ -60,5 +60,12 @@ define([], function() {
       systemSettings:'Настройки Системы',
       scripts: 'Скрипты'
     },
+
+    policyChangedModal: {
+      title: 'Состояние настроек',
+      message: 'Настройки политики были изменены, хотите сохранить их?',
+      no: 'Нет',
+      yes: 'Да'
+    },
   };
 });
